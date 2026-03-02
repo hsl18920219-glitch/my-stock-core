@@ -1,7 +1,6 @@
-// api/engine.js (이 내용으로 싹 교체하세요!)
+// api/engine.js
 let cachedToken = null;
 let tokenExpiry = 0;
-let lastAttemptTime = 0;
 
 export default async function handler(req, res) {
     // CORS 설정 (브라우저 허용)
@@ -12,8 +11,18 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     try {
-        const { action, appKey, appSecret } = req.body;
-        if (action !== 'full_scan') return res.status(200).json({ prices: [] });
+        // 🚨 어떤 형태로 들어오든 억지로라도 파싱하게 만드는 무적 방어코드!
+        let bodyData = req.body;
+        if (typeof bodyData === 'string') {
+            try { bodyData = JSON.parse(bodyData); } catch(e) {}
+        }
+        
+        const { action, appKey, appSecret } = bodyData || {};
+        
+        // 액션 값이 없으면 튕겨냄 (이제 에러 메시지도 똑바로 줍니다)
+        if (action !== 'full_scan') {
+            return res.status(200).json({ backend_msg: "요청 대기 중...", prices: [] });
+        }
 
         let prices = [];
         let indices = { kp: { p: "0", d: "0" }, kd: { p: "0", d: "0" } };
@@ -46,10 +55,10 @@ export default async function handler(req, res) {
                         return res.status(200).json({ backend_msg: "1차 한투 엔진 가동 중 🚀", prices, indices });
                     }
                 }
-            } catch (e) { console.log("한투 실패:", e.message); }
+            } catch (e) { console.log("한투 연결 실패:", e.message); }
         }
 
-        // 2. 네이버 백업 가동
+        // 2. 한투 실패 시 네이버 백업 가동
         const BACKUP = ["005930", "000660", "373220", "207940", "005380", "068270", "000270", "005490", "105560", "035420"];
         for (let i = 0; i < BACKUP.length; i++) {
             try {
@@ -66,6 +75,6 @@ export default async function handler(req, res) {
         return res.status(200).json({ backend_msg: "2차 네이버 백업 가동 중 ⚠️", prices, indices });
 
     } catch (e) {
-        return res.status(500).json({ backend_msg: "엔진 오류", prices: [] });
+        return res.status(500).json({ backend_msg: "엔진 치명적 오류", prices: [] });
     }
 }
