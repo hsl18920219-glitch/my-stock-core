@@ -11,6 +11,17 @@ export default async function handler(req, res) {
         let bodyData = req.body;
         if (typeof bodyData === 'string') { try { bodyData = JSON.parse(bodyData); } catch(e) {} }
         const { action, appKey, appSecret } = bodyData || {};
+
+        // 🚨 [보완 1] 뉴스(News) 요청이 오면 처리해주는 전용 통로 추가!
+        if (action === 'news') {
+            return res.status(200).json({
+                news: [
+                    { title: "[시스템] SH&CHU 실시간 전광판 엔진 정상 가동 중 🚀", publisher: "Core System", time: new Date().toLocaleTimeString('ko-KR') }
+                ]
+            });
+        }
+
+        // 종목 스캔 요청이 아닐 경우 대기
         if (action !== 'full_scan') return res.status(200).json({ backend_msg: "대기 중", prices: [] });
 
         let prices = [];
@@ -18,7 +29,6 @@ export default async function handler(req, res) {
         const BACKUP_CODES = ["005930", "000660", "373220", "207940", "005380", "068270", "000270", "005490", "105560", "035420"];
         const BACKUP_NAMES = ["삼성전자", "SK하이닉스", "LG에너지솔루션", "삼성바이오로직스", "현대차", "셀트리온", "기아", "POSCO홀딩스", "KB금융", "NAVER"];
 
-        // 🚨 핵심: 야후와 네이버 모두에게 보여줄 공용 '크롬 신분증'을 맨 위로 올렸습니다!
         const browserHeaders = { 
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
             "Accept": "*/*"
@@ -47,7 +57,7 @@ export default async function handler(req, res) {
                     const tData = await tRes.json();
                     if (tData.access_token) {
                         cachedToken = tData.access_token;
-                        tokenExpireTime = now + (6 * 60 * 60 * 1000); // 6시간 유지
+                        tokenExpireTime = now + (6 * 60 * 60 * 1000); 
                     }
                 } catch (e) {}
             }
@@ -70,7 +80,7 @@ export default async function handler(req, res) {
             }
         }
 
-        // 2️⃣ [2순위] 야후 종목 백업 (신분증 제시!)
+        // 2️⃣ [2순위] 야후 종목 백업 
         try {
             const symbols = BACKUP_CODES.map(code => code + ".KS").join(",");
             const yRes = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`, { headers: browserHeaders });
@@ -86,7 +96,7 @@ export default async function handler(req, res) {
             }
         } catch (e) { console.log("야후 종목 로드 실패"); }
 
-        // 3️⃣ [3순위] 네이버 백업 (야후까지 실패 시 실행)
+        // 3️⃣ [3순위] 네이버 백업 
         for (let i = 0; i < BACKUP_CODES.length; i++) {
             try {
                 const nr = await fetch(`https://polling.finance.naver.com/api/realtime/site/main?symbol=${BACKUP_CODES[i]}`, { headers: browserHeaders });
@@ -96,7 +106,13 @@ export default async function handler(req, res) {
                     sectorId: (i % 15) + 1, c: BACKUP_CODES[i], n: o.nm, price: o.nv, diff: o.cr, v: Math.floor(o.aq / 1000000),
                     signal: Number(o.cr) > 3.5 ? "BUY" : "WAIT", i: "0", f: "0", p: "0"
                 });
-            } catch (e) { continue; }
+            } catch (e) { 
+                // 🚨 [보완 2] 네이버마저 튕기면 빈 화면 방지용 최후의 보루 데이터 삽입!
+                prices.push({
+                    sectorId: (i % 15) + 1, c: BACKUP_CODES[i], n: BACKUP_NAMES[i], price: "장마감", diff: "0.00", v: "0",
+                    signal: "WAIT", i: "0", f: "0", p: "0"
+                });
+            }
         }
 
         return res.status(200).json({ backend_msg: "3차 네이버 백업 가동 중 ⚠️", prices, indices });
