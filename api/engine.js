@@ -18,9 +18,15 @@ export default async function handler(req, res) {
         const BACKUP_CODES = ["005930", "000660", "373220", "207940", "005380", "068270", "000270", "005490", "105560", "035420"];
         const BACKUP_NAMES = ["삼성전자", "SK하이닉스", "LG에너지솔루션", "삼성바이오로직스", "현대차", "셀트리온", "기아", "POSCO홀딩스", "KB금융", "NAVER"];
 
-        // 🚨 [공통] 지수는 무조건 야후에서 가장 먼저 가져옴
+        // 🚨 핵심: 야후와 네이버 모두에게 보여줄 공용 '크롬 신분증'을 맨 위로 올렸습니다!
+        const browserHeaders = { 
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "*/*"
+        };
+
+        // 🚨 [공통] 지수는 무조건 야후에서 (신분증 제시!)
         try {
-            const idxRes = await fetch("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^KS11,^KQ11");
+            const idxRes = await fetch("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^KS11,^KQ11", { headers: browserHeaders });
             const idxData = await idxRes.json();
             const kospi = idxData.quoteResponse.result[0];
             const kosdaq = idxData.quoteResponse.result[1];
@@ -64,10 +70,10 @@ export default async function handler(req, res) {
             }
         }
 
-        // 2️⃣ [2순위] 야후 종목 백업 (한투 실패 시 실행)
+        // 2️⃣ [2순위] 야후 종목 백업 (신분증 제시!)
         try {
             const symbols = BACKUP_CODES.map(code => code + ".KS").join(",");
-            const yRes = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`);
+            const yRes = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`, { headers: browserHeaders });
             const yData = await yRes.json();
             if (yData.quoteResponse.result && yData.quoteResponse.result.length > 0) {
                 prices = yData.quoteResponse.result.map((o, i) => ({
@@ -76,12 +82,11 @@ export default async function handler(req, res) {
                     v: Math.floor((o.regularMarketVolume * o.regularMarketPrice) / 100000000),
                     signal: o.regularMarketChangePercent > 3.5 ? "BUY" : "WAIT", i: "0", f: "0", p: "0"
                 }));
-                return res.status(200).json({ backend_msg: "2차 야후 백업 엔진 가동 중 🌐", prices, indices });
+                return res.status(200).json({ backend_msg: "2차 야후 백업 가동 중 🌐", prices, indices });
             }
         } catch (e) { console.log("야후 종목 로드 실패"); }
 
         // 3️⃣ [3순위] 네이버 백업 (야후까지 실패 시 실행)
-        const browserHeaders = { "User-Agent": "Mozilla/5.0", "Referer": "https://finance.naver.com/" };
         for (let i = 0; i < BACKUP_CODES.length; i++) {
             try {
                 const nr = await fetch(`https://polling.finance.naver.com/api/realtime/site/main?symbol=${BACKUP_CODES[i]}`, { headers: browserHeaders });
