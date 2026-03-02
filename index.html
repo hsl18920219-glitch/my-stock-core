@@ -216,7 +216,7 @@
             const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
             if(!key || !secret) return;
             try {
-                const res = await fetch("/.netlify/functions/engine", { 
+                const res = await fetch("/api/engine", { 
                     method: "POST", body: JSON.stringify({ action: 'full_scan', appKey: key, appSecret: secret }) 
                 });
                 const data = await res.json();
@@ -244,7 +244,7 @@
             const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
             if(!key || !secret) return;
             try {
-                const res = await fetch("/.netlify/functions/engine", { 
+                const res = await fetch("/api/engine", { 
                     method: "POST", body: JSON.stringify({ action: 'news', appKey: key, appSecret: secret }) 
                 });
                 const data = await res.json();
@@ -293,3 +293,4 @@
     </script>
 </body>
 </html>
+
