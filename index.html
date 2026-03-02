@@ -216,7 +216,7 @@
             try {
                 const res = await fetch("/api/engine", { 
                     method: "POST", 
-                    headers: { "Content-Type": "application/json" }, /* 🚨 여기가 범인이었습니다! 추가 완료! */
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: 'full_scan', appKey: key, appSecret: secret }) 
                 });
                 const data = await res.json();
@@ -246,7 +246,7 @@
             try {
                 const res = await fetch("/api/engine", { 
                     method: "POST", 
-                    headers: { "Content-Type": "application/json" }, /* 🚨 여기도 추가 완료! */
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ action: 'news', appKey: key, appSecret: secret }) 
                 });
                 const data = await res.json();
@@ -289,8 +289,10 @@
             document.getElementById('main-search-input').value = ""; 
             render([]); 
             updateClock(); setInterval(updateClock, 1000); 
-            setInterval(updateData, 5000);  
-            setInterval(updateNews, 30000); 
+            
+            // 🚨 핵심 수정: 서버를 배려하는 평화로운 30초 업데이트!
+            setInterval(updateData, 30000);  
+            setInterval(updateNews, 60000); 
         });
     </script>
 </body>
