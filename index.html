@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SH&CHU-CORE V4.7 - FINAL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700;900&display=swap');
+        body { background-color: #e9eff2; font-family: 'Noto Sans KR', sans-serif; letter-spacing: -0.05em; padding-bottom: 120px; }
+        .tima-mint { background-color: #00b0b0; }
+        .method-btn { flex: 1; text-align: center; padding: 10px 0; font-size: 11px; font-weight: 900; background: white; border: 1px solid #d1dee3; color: #999; cursor: pointer; transition: all 0.2s; }
+        .method-btn.active { background: #00b0b0; color: white; border-color: #00b0b0; }
+        
+        /* 🚨 섹터 그리드 정렬 및 카드 높이 고정 수정 */
+        #sector-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 12px;
+            align-items: start;
+        }
+        .card { 
+            background: white; 
+            border-radius: 6px; 
+            border: 1px solid #cbd5e1; 
+            overflow: hidden; 
+            margin-bottom: 2px; 
+            height: 100%; 
+            min-height: 480px; /* 🚨 높이를 고정하여 바둑판 배열 유지 */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sector-header { background-color: #00b0b0; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; }
+        .sector-title { font-size: 14px; font-weight: 900; color: white; }
+        
+        /* 🚨 종목 아이템 높이 균등화 수정 */
+        .stock-item { 
+            position: relative; 
+            padding: 14px 14px; 
+            border-bottom: 4px solid #cbd5e1; 
+            height: 115px; /* 🚨 높이 고정으로 종목 간 간격 통일 */
+            cursor: pointer; 
+            transition: background 0.2s; 
+        }
+        .stock-item:last-child { border-bottom: none; }
+        .stock-item:hover { background-color: #f8fafc; }
+        .stock-name { font-size: 15px; font-weight: 900; color: #111827; display: flex; align-items: center; gap: 4px; }
+        .stock-rate { font-size: 16px; font-weight: 900; }
+        .mini-candle-bg { width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; margin: 8px 0; position: relative; overflow: hidden; }
+        .mini-candle-fill { height: 100%; position: absolute; top: 0; transition: width 0.3s ease; }
+        .supply-row { display: flex; gap: 8px; font-size: 11px; font-weight: 900; margin-top: 6px; letter-spacing: -0.05em; }
+        .tab-content { display: none; } .tab-content.active { display: block; }
+        .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; cursor: pointer; color: #94a3b8; }
+        .nav-active { color: #00b0b0 !important; font-weight: 900; }
+        .bg-sfzone { background-color: #fff5f5; border-left: 4px solid #ef4444 !important; }
+        .bg-upper-limit { background-color: #ffedd5; border-left: 6px solid #c2410c !important; }
+        .upper-badge { background-color: #c2410c; color: white; padding: 2px 4px; border-radius: 4px; font-size: 10px; font-weight: 900; }
+        .ticker-container { overflow: hidden; white-space: nowrap; background: #1e293b; color: white; padding: 4px 0; border-radius: 4px; }
+        .ticker-text { display: inline-block; padding-left: 100%; animation: ticker 20s linear infinite; font-size: 12px; font-weight: bold; }
+        @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+    </style>
+</head>
+<body>
+    <header class="bg-[#e9eff2] sticky top-0 z-50">
+        <div class="p-3 flex justify-between items-center">
+            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU-CORE v4.7</span>
+            <div class="flex items-center gap-2">
+                <div id="real-time-clock" class="text-[11px] font-black text-[#00b0b0] bg-white border border-[#00b0b0] px-2 py-1 rounded-full shadow-sm">KST 00:00:00</div>
+                <button id="sound-btn" onclick="toggleSound()" class="bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md">SOUND OFF 🔇</button>
+            </div>
+        </div>
+        <div class="px-3 pb-2"><div class="ticker-container shadow-sm"><div id="market-ticker" class="ticker-text">실시간 지수 연결 대기 중...</div></div></div>
+        <div class="px-3 pb-2"><div class="relative">
+            <input type="text" id="main-search-input" onkeyup="searchStock()" autocomplete="off" placeholder="종목, 테마명을 입력하세요." class="w-full p-2 pl-4 pr-10 rounded-full border-2 border-[#00b0b0] text-sm font-bold focus:outline-none bg-white">
+            <i class="fas fa-search absolute right-4 top-3 text-[#00b0b0]"></i>
+        </div></div>
+        <div id="filter-bar" class="flex px-1 gap-1 mb-2">
+            <div onclick="switchM('all', this)" class="method-btn active">전체</div>
+            <div onclick="switchM('morning', this)" class="method-btn">오전매매</div>
+            <div onclick="switchM('fzone', this)" class="method-btn">F존</div>
+            <div onclick="switchM('closing', this)" class="method-btn">오후종가매매</div>
+        </div>
+    </header>
+
+    <main>
+        <div id="tab-market" class="tab-content active"><div id="sector-grid" class="p-2"></div></div>
+        <div id="tab-news" class="tab-content p-4"><div id="news-list" class="flex flex-col gap-3"></div></div>
+        <div id="tab-config" class="tab-content p-4">
+            <div class="card p-5 shadow-lg border-2 border-[#00b0b0]">
+                <h3 class="font-black text-[#00b0b0] mb-4 text-center">전종목 스캔 엔진 설정</h3>
+                <div class="space-y-3">
+                    <input type="text" id="app-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Key">
+                    <input type="password" id="app-secret" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Secret">
+                    <input type="text" id="dart-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="DART API Key">
+                    <button onclick="saveAndConnect()" class="tima-mint text-white w-full py-4 rounded-xl font-black shadow-lg">시스템 가동 및 실시간 연결 👊</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <nav class="fixed bottom-0 w-full h-20 bg-white border-t flex justify-around items-center z-50">
+        <div onclick="switchT(this,'tab-market')" class="nav-btn nav-active"><i class="fas fa-chart-pie text-2xl"></i><span class="text-[11px] mt-1 font-black">마켓중심</span></div>
+        <div onclick="switchT(this,'tab-news')" class="nav-btn"><i class="fas fa-newspaper text-2xl"></i><span class="text-[11px] mt-1 font-black">뉴스/공시</span></div>
+        <div onclick="switchT(this,'tab-config')" class="nav-btn"><i class="fas fa-gear text-2xl"></i><span class="text-[11px] mt-1 font-black">설정</span></div>
+    </nav>
+
+    <script>
+        let curM = 'all', allStockData = [], isSoundOn = false;
+        let announcedNews = new Set();
+        
+        const sectors = [
+            {id:1, t:'반도체/HBM'}, {id:2, t:'2차전지'}, {id:3, t:'자동차/모빌'}, {id:4, t:'바이오/제약'},
+            {id:5, t:'원전/SMR'}, {id:6, t:'금융/은행'}, {id:7, t:'AI/로봇'}, {id:8, t:'방산/우주'},
+            {id:9, t:'조선/해운'}, {id:10, t:'철강/금속'}, {id:11, t:'신재생/에너지'}, {id:12, t:'게임/엔터'},
+            {id:13, t:'양자암호'}, {id:14, t:'원격의료'}, {id:15, t:'개별이슈'}
+        ];
+
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            const clockEl = document.getElementById('real-time-clock');
+            if (clockEl) clockEl.innerText = `KST ${h}:${m}:${s}`;
+        }
+
+        function switchT(el, id) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('nav-active'));
+            document.getElementById(id).classList.add('active');
+            if(el) el.classList.add('nav-active');
+            document.getElementById('filter-bar').style.display = (id === 'tab-market') ? 'flex' : 'none';
+        }
+
+        function toggleSound() {
+            isSoundOn = !isSoundOn;
+            const btn = document.getElementById('sound-btn');
+            if (isSoundOn) {
+                btn.textContent = 'SOUND ON 🔊';
+                btn.className = 'bg-red-500 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
+                speak("사운드 알림이 켜졌습니다.");
+            } else {
+                btn.textContent = 'SOUND OFF 🔇';
+                btn.className = 'bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
+                if(window.speechSynthesis) window.speechSynthesis.cancel();
+            }
+        }
+
+        function speak(text) {
+            if (!isSoundOn || !window.speechSynthesis) return;
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'ko-KR'; u.rate = 1.1; 
+            window.speechSynthesis.speak(u);
+        }
+
+        function render(data = []) {
+            const grid = document.getElementById('sector-grid');
+            grid.innerHTML = sectors.map(sec => {
+                let filtered = data.filter(d => {
+                    if (d.sectorId !== sec.id) return false;
+                    if (curM === 'morning') return Number(d.diff) >= 3;
+                    if (curM === 'fzone') return d.signal === 'WAIT';
+                    if (curM === 'closing') return Number(d.diff) > 0;
+                    return true;
+                }).slice(0, 4);
+
+                return `<div class="card flex flex-col">
+                    <div class="sector-header">
+                        <span class="sector-title">${sec.t}</span>
+                        <span class="text-[10px] text-white opacity-80">${sec.id}위</span>
+                    </div>
+                    <div class="flex-1">${filtered.map(s => {
+                        const diff = Number(s.diff) || 0;
+                        const isUpper = diff >= 29.5;
+                        const barColor = isUpper ? '#c2410c' : (diff >= 0 ? '#ef4444' : '#3b82f6');
+                        const bgClass = isUpper ? 'bg-upper-limit' : (s.signal === 'BUY' ? 'bg-sfzone' : '');
+                        
+                        const barWidth = Math.min(Math.abs(diff) * 1.66, 50); 
+                        const leftPos = diff >= 0 ? 50 : 50 - barWidth;
+
+                        return `<div class="stock-item ${bgClass}" onclick="window.open('https://finance.naver.com/item/main.naver?code=${s.c}','_blank')">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="stock-name">${isUpper?'<span class="upper-badge">상한가</span>':''}${s.n}</span>
+                                <span class="stock-rate" style="color: ${barColor}">${diff > 0 ? '+'+diff : diff}%</span>
+                            </div>
+                            <div class="mini-candle-bg" style="background:#f1f5f9; position:relative;">
+                                <div style="position:absolute; left:50%; top:0; width:1px; height:100%; background:#cbd5e1; z-index:1;"></div>
+                                <div class="mini-candle-fill" style="width:${barWidth}%; background:${barColor}; left:${leftPos}%; transition: all 0.5s ease; z-index:2;"></div>
+                            </div>
+                            <div class="flex justify-between font-black text-[13px] items-center mt-2">
+                                <span class="text-gray-800">${(Number(s.price) || 0).toLocaleString()}원</span>
+                                <span class="text-[#00b0b0] bg-teal-50 px-2 py-0.5 rounded text-[12px]">${s.v}억</span>
+                                <span class="${s.signal==='WAIT'?'text-blue-500 animate-pulse':'text-red-500'} text-[12px]">${isUpper?'MAX':s.signal}</span>
+                            </div>
+                            <div class="supply-row">
+                                <div class="text-[#22c55e]">기:${s.i || '0'}</div>
+                                <div class="text-[#ef4444]">외:${s.f || '0'}</div>
+                                <div class="text-[#64748b]">개:${s.p || '0'}</div>
+                            </div>
+                        </div>`;
+                    }).join('') || '<div class="p-8 text-center text-xs text-gray-300">검색 조건 미달</div>'}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function searchStock() {
+            const query = (document.getElementById('main-search-input').value || '').toLowerCase();
+            const filtered = allStockData.filter(s => (s.n || '').toLowerCase().includes(query) || (s.c || '').includes(query));
+            render(filtered);
+        }
+
+        async function updateData() {
+            const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
+            if(!key || !secret) return;
+            try {
+                const res = await fetch("/.netlify/functions/engine", { 
+                    method: "POST", body: JSON.stringify({ action: 'full_scan', appKey: key, appSecret: secret }) 
+                });
+                const data = await res.json();
+                const statusMsg = data.backend_msg || "상태 정보 없음";
+
+                if (data.indices) {
+                    const { kp, kd } = data.indices;
+                    document.getElementById('market-ticker').innerHTML = 
+                        `KOSPI <span class="${Number(kp.d)>=0?'text-red-400':'text-blue-400'}">${kp.p} (${kp.d}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
+                        `KOSDAQ <span class="${Number(kd.d)>=0?'text-red-400':'text-blue-400'}">${kd.p} (${kd.d}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
+                        `<span class="${statusMsg.includes('에러') || statusMsg.includes('우회') ? 'text-yellow-300' : 'text-green-300'}">${statusMsg}</span>`;
+                } else {
+                    document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">시스템 경고: ${statusMsg}</span>`;
+                }
+
+                allStockData = data.prices || [];
+                if(!document.getElementById('main-search-input').value) render(allStockData);
+            } catch (e) { 
+                console.error("데이터 스캔 에러:", e); 
+                document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">서버 통신 단절</span>`;
+            }
+        }
+
+        async function updateNews() {
+            const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
+            if(!key || !secret) return;
+            try {
+                const res = await fetch("/.netlify/functions/engine", { 
+                    method: "POST", body: JSON.stringify({ action: 'news', appKey: key, appSecret: secret }) 
+                });
+                const data = await res.json();
+                const newsList = document.getElementById('news-list');
+                
+                if (data && data.news && data.news.length > 0) {
+                    newsList.innerHTML = data.news.map(n => {
+                        return `<div class="card p-4 border-l-4 ${n.type==='DART'?'border-red-500':'border-[#00b0b0]'} bg-white shadow-md mb-3">
+                            <div class="text-[15px] font-black text-gray-800 leading-relaxed">${n.type==='DART'?'<span class="upper-badge !bg-red-500 mr-1 text-[10px]">🚨공시</span>':''}${n.title}</div>
+                            <div class="text-[12px] text-gray-500 mt-2 font-bold flex justify-between"><span>${n.publisher}</span><span>${n.time}</span></div>
+                        </div>`;
+                    }).join('');
+
+                    const latestNews = data.news[0];
+                    const newsId = latestNews.time + latestNews.title; 
+                    if (!announcedNews.has(newsId) && !latestNews.title.includes("대기 중")) {
+                        announcedNews.add(newsId);
+                        speak("새로운 속보입니다. " + latestNews.title);
+                    }
+                } else {
+                    newsList.innerHTML = '<div class="p-10 text-center text-gray-400 font-bold text-sm">현재 실시간 속보가 없습니다.</div>';
+                }
+            } catch (e) { document.getElementById('news-list').innerHTML = '<div class="p-10 text-center text-red-400">뉴스 서버 지연</div>'; }
+        }
+
+        function switchM(m, el) {
+            curM = m; document.querySelectorAll('.method-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); render(allStockData);
+        }
+
+        function saveAndConnect() {
+            localStorage.setItem('kis_key', document.getElementById('app-key').value);
+            localStorage.setItem('kis_secret', document.getElementById('app-secret').value);
+            localStorage.setItem('dart_key', document.getElementById('dart-key').value);
+            document.getElementById('main-search-input').value = ""; 
+            alert("연결 완료! 시스템이 실시간으로 가동됩니다.");
+            updateData(); updateNews(); switchT(document.querySelector('.nav-btn'), 'tab-market');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('main-search-input').value = ""; 
+            render([]); 
+            updateClock(); setInterval(updateClock, 1000); 
+            setInterval(updateData, 5000);  
+            setInterval(updateNews, 30000); 
+        });
+    </script>
+</body>
+</html>
