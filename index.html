@@ -13,7 +13,6 @@
         .method-btn { flex: 1; text-align: center; padding: 10px 0; font-size: 11px; font-weight: 900; background: white; border: 1px solid #d1dee3; color: #999; cursor: pointer; transition: all 0.2s; }
         .method-btn.active { background: #00b0b0; color: white; border-color: #00b0b0; }
         
-        /* 🚨 섹터 그리드 정렬 및 카드 높이 고정 수정 */
         #sector-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -27,7 +26,7 @@
             overflow: hidden; 
             margin-bottom: 2px; 
             height: 100%; 
-            min-height: 480px; /* 🚨 높이를 고정하여 바둑판 배열 유지 */
+            min-height: 480px; 
             display: flex;
             flex-direction: column;
         }
@@ -35,12 +34,11 @@
         .sector-header { background-color: #00b0b0; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; }
         .sector-title { font-size: 14px; font-weight: 900; color: white; }
         
-        /* 🚨 종목 아이템 높이 균등화 수정 */
         .stock-item { 
             position: relative; 
             padding: 14px 14px; 
             border-bottom: 4px solid #cbd5e1; 
-            height: 115px; /* 🚨 높이 고정으로 종목 간 간격 통일 */
+            height: 115px; 
             cursor: pointer; 
             transition: background 0.2s; 
         }
@@ -217,7 +215,9 @@
             if(!key || !secret) return;
             try {
                 const res = await fetch("/api/engine", { 
-                    method: "POST", body: JSON.stringify({ action: 'full_scan', appKey: key, appSecret: secret }) 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" }, /* 🚨 여기가 범인이었습니다! 추가 완료! */
+                    body: JSON.stringify({ action: 'full_scan', appKey: key, appSecret: secret }) 
                 });
                 const data = await res.json();
                 const statusMsg = data.backend_msg || "상태 정보 없음";
@@ -229,7 +229,7 @@
                         `KOSDAQ <span class="${Number(kd.d)>=0?'text-red-400':'text-blue-400'}">${kd.p} (${kd.d}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
                         `<span class="${statusMsg.includes('에러') || statusMsg.includes('우회') ? 'text-yellow-300' : 'text-green-300'}">${statusMsg}</span>`;
                 } else {
-                    document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">시스템 경고: ${statusMsg}</span>`;
+                    document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">시스템 상태: ${statusMsg}</span>`;
                 }
 
                 allStockData = data.prices || [];
@@ -245,7 +245,9 @@
             if(!key || !secret) return;
             try {
                 const res = await fetch("/api/engine", { 
-                    method: "POST", body: JSON.stringify({ action: 'news', appKey: key, appSecret: secret }) 
+                    method: "POST", 
+                    headers: { "Content-Type": "application/json" }, /* 🚨 여기도 추가 완료! */
+                    body: JSON.stringify({ action: 'news', appKey: key, appSecret: secret }) 
                 });
                 const data = await res.json();
                 const newsList = document.getElementById('news-list');
@@ -293,4 +295,3 @@
     </script>
 </body>
 </html>
-
