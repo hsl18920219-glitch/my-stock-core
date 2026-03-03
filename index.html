@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SH&CHU-CORE V4.9 - 한투 VIP</title>
+    <title>SH&CHU-CORE V5.0 - THE FINAL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -40,7 +40,7 @@
 <body>
     <header class="bg-[#e9eff2] sticky top-0 z-50">
         <div class="p-3 flex justify-between items-center">
-            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU-CORE v4.9</span>
+            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU-CORE v5.0</span>
             <div class="flex items-center gap-2">
                 <div id="real-time-clock" class="text-[11px] font-black text-[#00b0b0] bg-white border border-[#00b0b0] px-2 py-1 rounded-full shadow-sm">KST 00:00:00</div>
                 <button id="sound-btn" onclick="toggleSound()" class="bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md">SOUND OFF 🔇</button>
@@ -84,7 +84,7 @@
     <script>
         let curM = 'all', allStockData = [], isSoundOn = false;
         let announcedNews = new Set();
-        let savedKisToken = null; // 🚨 브라우저 토큰 캐싱 부활!
+        let savedKisToken = null; // 브라우저 토큰 캐싱 (5분 알림 차단용)
         
         const sectors = [
             {id:1, t:'반도체/HBM'}, {id:2, t:'2차전지'}, {id:3, t:'자동차/모빌'}, {id:4, t:'바이오/제약'},
@@ -169,13 +169,35 @@
             render(allStockData.filter(s => (s.n || '').toLowerCase().includes(query) || (s.c || '').includes(query)));
         }
 
-        // 🚨 한투 공식 서버 연동 복구!
         async function updateData() {
             const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
+            let statusMsgHTML = `<span class="text-yellow-400 font-bold">대기 중...</span>`;
+            
+            // 🚨 1. 지수 데이터 (브라우저 직접 긁어오기 - 유튜브 우회 방식)
+            try {
+                const proxyUrl = "https://api.allorigins.win/get?url=" + encodeURIComponent("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^KS11,^KQ11");
+                const idxRes = await fetch(proxyUrl);
+                const rawData = await idxRes.json();
+                const idxData = JSON.parse(rawData.contents);
+                const kp = idxData.quoteResponse.result[0];
+                const kd = idxData.quoteResponse.result[1];
+                
+                const kpDiff = kp.regularMarketChangePercent;
+                const kdDiff = kd.regularMarketChangePercent;
+
+                document.getElementById('market-ticker').innerHTML = 
+                    `KOSPI <span class="${kpDiff>=0?'text-red-400':'text-blue-400'}">${kp.regularMarketPrice.toLocaleString()} (${kpDiff.toFixed(2)}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
+                    `KOSDAQ <span class="${kdDiff>=0?'text-red-400':'text-blue-400'}">${kd.regularMarketPrice.toLocaleString()} (${kdDiff.toFixed(2)}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
+                    `<span id="engine-status" class="text-green-300">엔진 통신 중...</span>`;
+            } catch (e) { console.log("지수 로드 실패"); }
+
             if(!key || !secret) {
-                document.getElementById('market-ticker').innerHTML = `<span class="text-yellow-400 font-bold">설정 탭에서 한투 API Key를 입력해주세요.</span>`;
+                const statusEl = document.getElementById('engine-status');
+                if (statusEl) statusEl.innerHTML = `<span class="text-yellow-400 font-bold">설정 탭에서 한투 API Key를 입력해주세요.</span>`;
                 return;
             }
+
+            // 🚨 2. 종목 데이터 (한투 정식 API 통신)
             try {
                 const res = await fetch("/api/engine", { 
                     method: "POST", headers: { "Content-Type": "application/json" },
@@ -183,17 +205,19 @@
                 });
                 const data = await res.json();
                 
-                // 에러나면 토큰 날리고 재발급 유도
-                if(data.reset_token) savedKisToken = null;
-                else if (data.token) savedKisToken = data.token; 
+                if(data.reset_token) savedKisToken = null; // 오류 시 토큰 날림
+                else if (data.token) savedKisToken = data.token; // 발급 시 저장
 
-                const statusMsg = data.backend_msg || "상태 정보 없음";
-                document.getElementById('market-ticker').innerHTML = `<span class="text-green-300 font-bold">${statusMsg}</span>`;
+                const statusEl = document.getElementById('engine-status');
+                if (statusEl) statusEl.innerHTML = `<span class="text-green-300 font-bold">${data.backend_msg || "상태 정보 없음"}</span>`;
 
-                allStockData = data.prices || [];
-                if(!document.getElementById('main-search-input').value) render(allStockData);
+                if (data.prices && data.prices.length > 0) {
+                    allStockData = data.prices;
+                    if(!document.getElementById('main-search-input').value) render(allStockData);
+                }
             } catch (e) { 
-                document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">서버 통신 단절 ⚠️</span>`;
+                const statusEl = document.getElementById('engine-status');
+                if (statusEl) statusEl.innerHTML = `<span class="text-red-400 font-bold">서버 통신 단절 ⚠️</span>`;
             }
         }
 
@@ -229,9 +253,14 @@
             document.getElementById('main-search-input').value = ""; 
             render([]); 
             updateClock(); setInterval(updateClock, 1000); 
-            setInterval(updateData, 30000); // 30초 
-            setInterval(updateNews, 60000); // 60초
-            updateData(); updateNews();
+            
+            // 🚨 30초 룰 완벽 적용
+            setInterval(updateData, 30000); 
+            setInterval(updateNews, 60000); 
+            
+            // 앱 켜자마자 바로 1번 실행
+            updateData(); 
+            updateNews();
         });
     </script>
 </body>
