@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SH&CHU-CORE V7.1 - ORIGINAL DESIGN</title>
+    <title>SH&CHU-CORE V8.0 - THE FINAL GET METHOD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -12,43 +12,17 @@
         .tima-mint { background-color: #00b0b0; }
         .method-btn { flex: 1; text-align: center; padding: 10px 0; font-size: 11px; font-weight: 900; background: white; border: 1px solid #d1dee3; color: #999; cursor: pointer; transition: all 0.2s; }
         .method-btn.active { background: #00b0b0; color: white; border-color: #00b0b0; }
-        
-        #sector-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 12px;
-            align-items: start;
-        }
-        .card { 
-            background: white; 
-            border-radius: 6px; 
-            border: 1px solid #cbd5e1; 
-            overflow: hidden; 
-            margin-bottom: 2px; 
-            height: 100%; 
-            min-height: 480px; 
-            display: flex;
-            flex-direction: column;
-        }
-
+        #sector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+        .card { background: white; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; margin-bottom: 2px; height: 100%; min-height: 480px; display: flex; flex-direction: column; }
         .sector-header { background-color: #00b0b0; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; }
         .sector-title { font-size: 14px; font-weight: 900; color: white; }
-        
-        .stock-item { 
-            position: relative; 
-            padding: 14px 14px; 
-            border-bottom: 4px solid #cbd5e1; 
-            height: 115px; 
-            cursor: pointer; 
-            transition: background 0.2s; 
-        }
-        .stock-item:last-child { border-bottom: none; }
+        .stock-item { position: relative; padding: 14px 14px; border-bottom: 4px solid #cbd5e1; height: 115px; cursor: pointer; transition: background 0.2s; }
         .stock-item:hover { background-color: #f8fafc; }
         .stock-name { font-size: 15px; font-weight: 900; color: #111827; display: flex; align-items: center; gap: 4px; }
         .stock-rate { font-size: 16px; font-weight: 900; }
         .mini-candle-bg { width: 100%; height: 6px; background: #e2e8f0; border-radius: 3px; margin: 8px 0; position: relative; overflow: hidden; }
         .mini-candle-fill { height: 100%; position: absolute; top: 0; transition: width 0.3s ease; }
-        .supply-row { display: flex; gap: 8px; font-size: 11px; font-weight: 900; margin-top: 6px; letter-spacing: -0.05em; }
+        .supply-row { display: flex; gap: 8px; font-size: 11px; font-weight: 900; margin-top: 6px; letter-spacing: -0.05em; color: #64748b; }
         .tab-content { display: none; } .tab-content.active { display: block; }
         .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; cursor: pointer; color: #94a3b8; }
         .nav-active { color: #00b0b0 !important; font-weight: 900; }
@@ -56,20 +30,22 @@
         .bg-upper-limit { background-color: #ffedd5; border-left: 6px solid #c2410c !important; }
         .upper-badge { background-color: #c2410c; color: white; padding: 2px 4px; border-radius: 4px; font-size: 10px; font-weight: 900; }
         .ticker-container { overflow: hidden; white-space: nowrap; background: #1e293b; color: white; padding: 4px 0; border-radius: 4px; }
-        .ticker-text { display: inline-block; padding-left: 100%; animation: ticker 20s linear infinite; font-size: 12px; font-weight: bold; }
+        .ticker-text { display: inline-block; padding-left: 100%; animation: ticker 25s linear infinite; font-size: 12px; font-weight: bold; }
         @keyframes ticker { 0% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-100%, 0, 0); } }
+        .animate-pulse-fast { animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
     </style>
 </head>
 <body>
     <header class="bg-[#e9eff2] sticky top-0 z-50">
         <div class="p-3 flex justify-between items-center">
-            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU-CORE v7.1</span>
+            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU V8.0</span>
             <div class="flex items-center gap-2">
                 <div id="real-time-clock" class="text-[11px] font-black text-[#00b0b0] bg-white border border-[#00b0b0] px-2 py-1 rounded-full shadow-sm">KST 00:00:00</div>
                 <button id="sound-btn" onclick="toggleSound()" class="bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md">SOUND OFF 🔇</button>
             </div>
         </div>
-        <div class="px-3 pb-2"><div class="ticker-container shadow-sm"><div id="market-ticker" class="ticker-text">구글 브릿지 연결 대기 중...</div></div></div>
+        <div class="px-3 pb-2"><div class="ticker-container shadow-sm"><div id="market-ticker" class="ticker-text">엔진 연결 준비 중... 🚀</div></div></div>
         <div class="px-3 pb-2"><div class="relative">
             <input type="text" id="main-search-input" onkeyup="searchStock()" autocomplete="off" placeholder="종목, 테마명을 입력하세요." class="w-full p-2 pl-4 pr-10 rounded-full border-2 border-[#00b0b0] text-sm font-bold focus:outline-none bg-white">
             <i class="fas fa-search absolute right-4 top-3 text-[#00b0b0]"></i>
@@ -87,13 +63,12 @@
         <div id="tab-news" class="tab-content p-4"><div id="news-list" class="flex flex-col gap-3"></div></div>
         <div id="tab-config" class="tab-content p-4">
             <div class="card p-5 shadow-lg border-2 border-[#00b0b0]">
-                <h3 class="font-black text-[#00b0b0] mb-4 text-center">전종목 스캔 엔진 설정</h3>
+                <h3 class="font-black text-[#00b0b0] mb-4 text-center">구글 브릿지 엔진 설정 (GET)</h3>
                 <div class="space-y-3">
-                    <input type="text" id="app-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Key">
-                    <input type="password" id="app-secret" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Secret">
-                    <input type="text" id="dart-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="DART API Key">
-                    <button onclick="saveAndConnect()" class="tima-mint text-white w-full py-4 rounded-xl font-black shadow-lg">시스템 가동 및 실시간 연결 👊</button>
-                    <p class="text-[10px] text-gray-400 text-center">* 키는 폰에만 저장됩니다.</p>
+                    <input type="text" id="app-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Key (실전투자용)">
+                    <input type="password" id="app-secret" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Secret (실전투자용)">
+                    <button onclick="saveAndConnect()" class="tima-mint text-white w-full py-4 rounded-xl font-black shadow-lg">구글 엔진 가동 및 연결 👊</button>
+                    <p class="text-[11px] text-gray-500 text-center font-bold">※ 서버 충돌 없는 GET 방식 엔진입니다.</p>
                 </div>
             </div>
         </div>
@@ -106,11 +81,10 @@
     </nav>
 
     <script>
-        // 🚨 여기에 석호 님의 구글 스크립트 URL을 넣어주세요!
-        const GAS_URL = "https://script.google.com/macros/s/AKfycby9F7NkF1YUHkUp_OyahO3zdS038tXVR3oNtouNVDjz3vMHERIpYQYhkThgZZy8spM/exec";
+        // 🚨 여기에 [새 배포]로 발급받은 새로운 구글 URL을 넣어주세요!
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzRistLgdwtgInsSPNBIe8pFBHXHR9Y0yuCQE7zkC2JZD-FQ2J_lxDf5jhypJJdvUQ/exec";
 
-        let curM = 'all', allStockData = [], isSoundOn = false, savedKisToken = null;
-        let announcedNews = new Set();
+        let curM = 'all', allStockData = [], isSoundOn = false, savedKisToken = "";
         
         const sectors = [
             {id:1, t:'반도체/HBM'}, {id:2, t:'2차전지'}, {id:3, t:'자동차/모빌'}, {id:4, t:'바이오/제약'},
@@ -121,11 +95,7 @@
 
         function updateClock() {
             const now = new Date();
-            const h = String(now.getHours()).padStart(2, '0');
-            const m = String(now.getMinutes()).padStart(2, '0');
-            const s = String(now.getSeconds()).padStart(2, '0');
-            const clockEl = document.getElementById('real-time-clock');
-            if (clockEl) clockEl.innerText = `KST ${h}:${m}:${s}`;
+            document.getElementById('real-time-clock').innerText = `KST ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         }
 
         function switchT(el, id) {
@@ -136,26 +106,20 @@
             document.getElementById('filter-bar').style.display = (id === 'tab-market') ? 'flex' : 'none';
         }
 
+        function switchM(m, el) {
+            curM = m; document.querySelectorAll('.method-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); render(allStockData);
+        }
+
         function toggleSound() {
             isSoundOn = !isSoundOn;
             const btn = document.getElementById('sound-btn');
-            if (isSoundOn) {
+            if(isSoundOn) {
                 btn.textContent = 'SOUND ON 🔊';
                 btn.className = 'bg-red-500 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
-                speak("사운드 알림이 켜졌습니다.");
             } else {
                 btn.textContent = 'SOUND OFF 🔇';
                 btn.className = 'bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
-                if(window.speechSynthesis) window.speechSynthesis.cancel();
             }
-        }
-
-        function speak(text) {
-            if (!isSoundOn || !window.speechSynthesis) return;
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'ko-KR'; u.rate = 1.1; 
-            window.speechSynthesis.speak(u);
         }
 
         function render(data = []) {
@@ -170,16 +134,13 @@
                 }).slice(0, 4);
 
                 return `<div class="card flex flex-col">
-                    <div class="sector-header">
-                        <span class="sector-title">${sec.t}</span>
-                        <span class="text-[10px] text-white opacity-80">${sec.id}위</span>
-                    </div>
+                    <div class="sector-header"><span class="sector-title">${sec.t}</span></div>
                     <div class="flex-1">${filtered.map(s => {
                         const diff = Number(s.diff) || 0;
                         const isUpper = diff >= 29.5;
                         const barColor = isUpper ? '#c2410c' : (diff >= 0 ? '#ef4444' : '#3b82f6');
                         const bgClass = isUpper ? 'bg-upper-limit' : (s.signal === 'BUY' ? 'bg-sfzone' : '');
-                        
+                        const signalClass = s.signal === 'WAIT' ? 'text-blue-500 animate-pulse-fast' : 'text-red-500';
                         const barWidth = Math.min(Math.abs(diff) * 1.66, 50); 
                         const leftPos = diff >= 0 ? 50 : 50 - barWidth;
 
@@ -195,13 +156,9 @@
                             <div class="flex justify-between font-black text-[13px] items-center mt-2">
                                 <span class="text-gray-800">${(Number(s.price) || 0).toLocaleString()}원</span>
                                 <span class="text-[#00b0b0] bg-teal-50 px-2 py-0.5 rounded text-[12px]">${s.v}억</span>
-                                <span class="${s.signal==='WAIT'?'text-blue-500 animate-pulse':'text-red-500'} text-[12px]">${isUpper?'MAX':s.signal}</span>
+                                <span class="${signalClass} text-[12px]">${isUpper?'MAX':s.signal}</span>
                             </div>
-                            <div class="supply-row">
-                                <div class="text-[#22c55e]">기:${s.i || '0'}</div>
-                                <div class="text-[#ef4444]">외:${s.f || '0'}</div>
-                                <div class="text-[#64748b]">개:${s.p || '0'}</div>
-                            </div>
+                            <div class="supply-row"><span>기:0</span> <span>외:0</span> <span>개:0</span></div>
                         </div>`;
                     }).join('') || '<div class="p-8 text-center text-xs text-gray-300">검색 조건 미달</div>'}</div>
                 </div>`;
@@ -210,23 +167,22 @@
 
         function searchStock() {
             const query = (document.getElementById('main-search-input').value || '').toLowerCase();
-            const filtered = allStockData.filter(s => (s.n || '').toLowerCase().includes(query) || (s.c || '').includes(query));
-            render(filtered);
+            render(allStockData.filter(s => (s.n || '').toLowerCase().includes(query) || (s.c || '').includes(query)));
         }
 
         async function updateData() {
             const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
             let indexText = "지수 조회 중...";
 
+            // 1. 튼튼한 지수 우회 프록시로 변경 (allorigins 사용)
             try {
-                const proxyUrl = "https://corsproxy.io/?";
-                const targetUrl = encodeURIComponent("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^KS11,^KQ11");
-                const idxRes = await fetch(proxyUrl + targetUrl);
-                const idxData = await idxRes.json();
-                const kp = idxData.quoteResponse.result[0];
-                const kd = idxData.quoteResponse.result[1];
-                
-                indexText = `KOSPI <span class="${kp.regularMarketChangePercent>=0?'text-red-400':'text-blue-400'}">${kp.regularMarketPrice.toLocaleString()} (${kp.regularMarketChangePercent.toFixed(2)}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
+                const proxy = "https://api.allorigins.win/get?url=";
+                const target = encodeURIComponent("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^KS11,^KQ11");
+                const res = await fetch(proxy + target);
+                const raw = await res.json();
+                const d = JSON.parse(raw.contents);
+                const kp = d.quoteResponse.result[0], kd = d.quoteResponse.result[1];
+                indexText = `KOSPI <span class="${kp.regularMarketChangePercent>=0?'text-red-400':'text-blue-400'}">${kp.regularMarketPrice.toLocaleString()} (${kp.regularMarketChangePercent.toFixed(2)}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` + 
                             `KOSDAQ <span class="${kd.regularMarketChangePercent>=0?'text-red-400':'text-blue-400'}">${kd.regularMarketPrice.toLocaleString()} (${kd.regularMarketChangePercent.toFixed(2)}%)</span>`;
             } catch (e) { indexText = "지수 통신 지연 ⚠️"; }
 
@@ -237,12 +193,19 @@
                 return;
             }
 
+            if(GAS_URL.includes("여기에")) {
+                 tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">🚨 코드에 구글 주소를 넣어주세요!</span>`;
+                 return;
+            }
+
+            // 2. 구글 브릿지 GET 방식으로 호출 (CORS 완전 해결)
             try {
-                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-blue-300 font-bold">구글 브릿지 통신 중...</span>`;
-                const res = await fetch(GAS_URL, { 
-                    method: "POST", 
-                    body: JSON.stringify({ appKey: key, appSecret: secret, token: savedKisToken }) 
-                });
+                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-blue-300 font-bold">구글 연결 중...</span>`;
+                
+                // 데이터를 URL 주소 뒤에 당당하게 달고 갑니다 (GET 방식)
+                const reqUrl = `${GAS_URL}?appKey=${encodeURIComponent(key)}&appSecret=${encodeURIComponent(secret)}&token=${encodeURIComponent(savedKisToken)}`;
+                
+                const res = await fetch(reqUrl);
                 const data = await res.json();
                 
                 if (data.token) savedKisToken = data.token;
@@ -251,12 +214,12 @@
                     allStockData = data.prices.map((item, i) => ({
                         sectorId: (i % 15) + 1, c: item.mksc_shrn_iscd, n: item.hts_kor_isnm,
                         price: item.stck_prpr, diff: item.prdy_ctrt, v: Math.floor(item.acml_tr_pbmn/100000000), 
-                        signal: Number(item.prdy_ctrt) > 3.5 ? "BUY" : "WAIT", i: "0", f: "0", p: "0"
+                        signal: Number(item.prdy_ctrt) > 3.5 ? "BUY" : "WAIT"
                     }));
                     if(!document.getElementById('main-search-input').value) render(allStockData);
-                    tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-green-300 font-bold">✅ 구글 엔진 정상 가동</span>`;
+                    tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-green-300 font-bold">✅ 엔진 정상 가동</span>`;
                 } else if (data.error) {
-                     tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">구글 통신 오류</span>`;
+                     tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">에러: ${data.error.substring(0,20)}</span>`;
                 }
             } catch (e) { 
                 tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">브릿지 연결 지연 ⚠️</span>`; 
@@ -267,44 +230,23 @@
             try {
                 const res = await fetch("/api/engine", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: 'news' }) });
                 const data = await res.json();
-                const newsList = document.getElementById('news-list');
-                
-                if (data && data.news && data.news.length > 0) {
-                    newsList.innerHTML = data.news.map(n => {
-                        return `<div class="card p-4 border-l-4 border-[#00b0b0] bg-white shadow-md mb-3">
-                            <div class="text-[15px] font-black text-gray-800 leading-relaxed">${n.title}</div>
-                            <div class="text-[12px] text-gray-500 mt-2 font-bold flex justify-between"><span>${n.publisher}</span><span>${n.time}</span></div>
-                        </div>`;
-                    }).join('');
-                }
+                if (data.news) document.getElementById('news-list').innerHTML = data.news.map(n => `<div class="card p-4 border-l-4 border-[#00b0b0] bg-white shadow-md mb-3"><div class="text-[15px] font-black text-gray-800 leading-relaxed">${n.title}</div><div class="text-[12px] text-gray-500 mt-2 font-bold flex justify-between"><span>${n.publisher}</span><span>${n.time}</span></div></div>`).join('');
             } catch (e) {}
-        }
-
-        function switchM(m, el) {
-            curM = m; document.querySelectorAll('.method-btn').forEach(b=>b.classList.remove('active')); el.classList.add('active'); render(allStockData);
         }
 
         function saveAndConnect() {
             localStorage.setItem('kis_key', document.getElementById('app-key').value);
             localStorage.setItem('kis_secret', document.getElementById('app-secret').value);
-            localStorage.setItem('dart_key', document.getElementById('dart-key').value);
-            document.getElementById('main-search-input').value = ""; 
             alert("연결 완료! 시스템이 실시간으로 가동됩니다.");
-            savedKisToken = null; 
+            savedKisToken = ""; 
             updateData(); 
             switchT(document.querySelector('.nav-btn'), 'tab-market');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('main-search-input').value = ""; 
-            render([]); 
-            updateClock(); setInterval(updateClock, 1000); 
-            
-            setInterval(updateData, 30000);  
-            setInterval(updateNews, 60000); 
-            
-            updateData();
-            updateNews();
+            render([]); updateClock(); setInterval(updateClock, 1000); 
+            setInterval(updateData, 30000); setInterval(updateNews, 60000); updateData(); updateNews();
         });
     </script>
 </body>
