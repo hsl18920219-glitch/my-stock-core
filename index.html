@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SH&CHU-CORE V4.7 - FINAL</title>
+    <title>SH&CHU-CORE V4.8 - 클라이언트 직결 🚀</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -63,13 +63,13 @@
 <body>
     <header class="bg-[#e9eff2] sticky top-0 z-50">
         <div class="p-3 flex justify-between items-center">
-            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU-CORE v4.7</span>
+            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU-CORE v4.8</span>
             <div class="flex items-center gap-2">
                 <div id="real-time-clock" class="text-[11px] font-black text-[#00b0b0] bg-white border border-[#00b0b0] px-2 py-1 rounded-full shadow-sm">KST 00:00:00</div>
                 <button id="sound-btn" onclick="toggleSound()" class="bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md">SOUND OFF 🔇</button>
             </div>
         </div>
-        <div class="px-3 pb-2"><div class="ticker-container shadow-sm"><div id="market-ticker" class="ticker-text">실시간 지수 연결 대기 중...</div></div></div>
+        <div class="px-3 pb-2"><div class="ticker-container shadow-sm"><div id="market-ticker" class="ticker-text">실시간 연결 중... 🚀</div></div></div>
         <div class="px-3 pb-2"><div class="relative">
             <input type="text" id="main-search-input" onkeyup="searchStock()" autocomplete="off" placeholder="종목, 테마명을 입력하세요." class="w-full p-2 pl-4 pr-10 rounded-full border-2 border-[#00b0b0] text-sm font-bold focus:outline-none bg-white">
             <i class="fas fa-search absolute right-4 top-3 text-[#00b0b0]"></i>
@@ -89,8 +89,8 @@
             <div class="card p-5 shadow-lg border-2 border-[#00b0b0]">
                 <h3 class="font-black text-[#00b0b0] mb-4 text-center">전종목 스캔 엔진 설정</h3>
                 <div class="space-y-3">
-                    <input type="text" id="app-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Key">
-                    <input type="password" id="app-secret" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Secret">
+                    <input type="text" id="app-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Key (현재 미사용)">
+                    <input type="password" id="app-secret" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Secret (현재 미사용)">
                     <input type="text" id="dart-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="DART API Key">
                     <button onclick="saveAndConnect()" class="tima-mint text-white w-full py-4 rounded-xl font-black shadow-lg">시스템 가동 및 실시간 연결 👊</button>
                 </div>
@@ -210,66 +210,100 @@
             render(filtered);
         }
 
+        // 🚨 [핵심 변경] 클라이언트 직결 스크래핑 엔진 (서버 차단 원천 봉쇄!)
         async function updateData() {
-            const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
-            if(!key || !secret) return;
             try {
-                const res = await fetch("/api/engine", { 
-                    method: "POST", 
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: 'full_scan', appKey: key, appSecret: secret }) 
+                // 우회 도로(CORS 프록시) 설정
+                const proxy = "https://api.allorigins.win/raw?url=";
+                
+                // 네이버 지수 URL
+                const idxKpUrl = encodeURIComponent("https://m.stock.naver.com/api/index/KOSPI/basic");
+                const idxKdUrl = encodeURIComponent("https://m.stock.naver.com/api/index/KOSDAQ/basic");
+                
+                // 네이버 거래량 상위 50 종목 URL (코스피/코스닥)
+                const kpUrl = encodeURIComponent("https://m.stock.naver.com/api/stocks/volume/KOSPI?page=1&pageSize=50");
+                const kdUrl = encodeURIComponent("https://m.stock.naver.com/api/stocks/volume/KOSDAQ?page=1&pageSize=50");
+
+                // 한 번에 4개 주소 동시 찌르기
+                const [idxKpRes, idxKdRes, kpRes, kdRes] = await Promise.all([
+                    fetch(proxy + idxKpUrl), fetch(proxy + idxKdUrl),
+                    fetch(proxy + kpUrl), fetch(proxy + kdUrl)
+                ]);
+
+                const idxKp = await idxKpRes.json();
+                const idxKd = await idxKdRes.json();
+                const kpData = await kpRes.json();
+                const kdData = await kdRes.json();
+
+                // 1. 지수 데이터 화면에 뿌리기
+                const kpDiff = parseFloat(idxKp.fluctuationsRatio).toFixed(2);
+                const kdDiff = parseFloat(idxKd.fluctuationsRatio).toFixed(2);
+                
+                document.getElementById('market-ticker').innerHTML = 
+                    `KOSPI <span class="${kpDiff>=0?'text-red-400':'text-blue-400'}">${idxKp.closePrice} (${kpDiff}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
+                    `KOSDAQ <span class="${kdDiff>=0?'text-red-400':'text-blue-400'}">${idxKd.closePrice} (${kdDiff}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
+                    `<span class="text-green-300">✅ 브라우저 직결 엔진 가동 중</span>`;
+
+                // 2. 종목 데이터 합치고 변환하기
+                const combined = [...(kpData.stocks || []), ...(kdData.stocks || [])];
+                
+                // 거래량 순으로 내림차순 정렬
+                combined.sort((a, b) => Number(b.accumulatedTradingVolume) - Number(a.accumulatedTradingVolume));
+
+                // UI 양식에 맞게 데이터 가공
+                allStockData = combined.slice(0, 100).map((item, i) => {
+                    const diff = Number(item.fluctuationsRatio);
+                    const priceStr = item.closePrice.replace(/,/g, '');
+                    const vol = Number(item.accumulatedTradingVolume);
+                    const vAmt = Math.floor((vol * Number(priceStr)) / 100000000); // 억 단위
+
+                    return {
+                        sectorId: (i % 15) + 1, 
+                        c: item.itemCode, 
+                        n: item.stockName,
+                        price: priceStr, 
+                        diff: diff.toFixed(2), 
+                        v: vAmt, 
+                        signal: diff > 3.5 ? "BUY" : "WAIT", 
+                        i: "0", f: "0", p: "0"
+                    };
                 });
-                const data = await res.json();
-                const statusMsg = data.backend_msg || "상태 정보 없음";
 
-                if (data.indices) {
-                    const { kp, kd } = data.indices;
-                    document.getElementById('market-ticker').innerHTML = 
-                        `KOSPI <span class="${Number(kp.d)>=0?'text-red-400':'text-blue-400'}">${kp.p} (${kp.d}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
-                        `KOSDAQ <span class="${Number(kd.d)>=0?'text-red-400':'text-blue-400'}">${kd.p} (${kd.d}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
-                        `<span class="${statusMsg.includes('에러') || statusMsg.includes('우회') ? 'text-yellow-300' : 'text-green-300'}">${statusMsg}</span>`;
-                } else {
-                    document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">시스템 상태: ${statusMsg}</span>`;
-                }
-
-                allStockData = data.prices || [];
                 if(!document.getElementById('main-search-input').value) render(allStockData);
+
             } catch (e) { 
                 console.error("데이터 스캔 에러:", e); 
-                document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">서버 통신 단절</span>`;
+                document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">네이버 직결 통신 지연 ⚠️</span>`;
             }
         }
 
+        // 🚨 [뉴스 추가] 네이버 실시간 속보 브라우저 직결 엔진
         async function updateNews() {
-            const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
-            if(!key || !secret) return;
             try {
-                const res = await fetch("/api/engine", { 
-                    method: "POST", 
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ action: 'news', appKey: key, appSecret: secret }) 
-                });
+                const proxy = "https://api.allorigins.win/raw?url=";
+                const newsUrl = encodeURIComponent("https://m.stock.naver.com/api/news/list?category=mainnews&page=1&pageSize=10");
+                const res = await fetch(proxy + newsUrl);
                 const data = await res.json();
                 const newsList = document.getElementById('news-list');
                 
-                if (data && data.news && data.news.length > 0) {
-                    newsList.innerHTML = data.news.map(n => {
-                        return `<div class="card p-4 border-l-4 ${n.type==='DART'?'border-red-500':'border-[#00b0b0]'} bg-white shadow-md mb-3">
-                            <div class="text-[15px] font-black text-gray-800 leading-relaxed">${n.type==='DART'?'<span class="upper-badge !bg-red-500 mr-1 text-[10px]">🚨공시</span>':''}${n.title}</div>
-                            <div class="text-[12px] text-gray-500 mt-2 font-bold flex justify-between"><span>${n.publisher}</span><span>${n.time}</span></div>
+                if (data && data.length > 0) {
+                    newsList.innerHTML = data.map(n => {
+                        // 시간 포맷 예쁘게 만들기 (YYYYMMDDHHMMSS -> HH:MM)
+                        const timeStr = n.datetime.length >= 12 ? `${n.datetime.substring(8,10)}:${n.datetime.substring(10,12)}` : n.datetime;
+                        return `<div class="card p-4 border-l-4 border-[#00b0b0] bg-white shadow-md mb-3">
+                            <div class="text-[15px] font-black text-gray-800 leading-relaxed">${n.title}</div>
+                            <div class="text-[12px] text-gray-500 mt-2 font-bold flex justify-between"><span>${n.officeName}</span><span>${timeStr}</span></div>
                         </div>`;
                     }).join('');
 
-                    const latestNews = data.news[0];
-                    const newsId = latestNews.time + latestNews.title; 
-                    if (!announcedNews.has(newsId) && !latestNews.title.includes("대기 중")) {
+                    const latestNews = data[0];
+                    const newsId = latestNews.datetime + latestNews.title; 
+                    if (!announcedNews.has(newsId)) {
                         announcedNews.add(newsId);
                         speak("새로운 속보입니다. " + latestNews.title);
                     }
-                } else {
-                    newsList.innerHTML = '<div class="p-10 text-center text-gray-400 font-bold text-sm">현재 실시간 속보가 없습니다.</div>';
                 }
-            } catch (e) { document.getElementById('news-list').innerHTML = '<div class="p-10 text-center text-red-400">뉴스 서버 지연</div>'; }
+            } catch (e) { document.getElementById('news-list').innerHTML = '<div class="p-10 text-center text-red-400">뉴스 통신 지연</div>'; }
         }
 
         function switchM(m, el) {
@@ -290,9 +324,13 @@
             render([]); 
             updateClock(); setInterval(updateClock, 1000); 
             
-            // 🚨 핵심 수정: 서버를 배려하는 평화로운 30초 업데이트!
+            // 30초마다 네이버 데이터 직결 업데이트
             setInterval(updateData, 30000);  
             setInterval(updateNews, 60000); 
+            
+            // 켜자마자 바로 1회 스캔 실행
+            updateData();
+            updateNews();
         });
     </script>
 </body>
