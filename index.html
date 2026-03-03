@@ -81,8 +81,9 @@
     </nav>
 
 <script>
-        // 🚨 구글 브릿지(GAS_URL) 완전 삭제! Vercel 다이렉트 통신
+        // 🚨 Vercel 다이렉트 통신 & 매크로 제어 완벽 적용 버전
         let curM = 'all', allStockData = [], isSoundOn = false, savedKisToken = "";
+        let dataInterval = null; // 🚨 오토 매크로 통제용 스위치 추가!
         
         const sectors = [
             {id:1, t:'반도체/HBM'}, {id:2, t:'2차전지'}, {id:3, t:'자동차/모빌'}, {id:4, t:'바이오/제약'},
@@ -167,7 +168,6 @@
             const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
             let indexText = "지수 조회 중...";
 
-            // 1. 지수 우회 프록시 (그대로 유지)
             try {
                 const proxy = "https://api.allorigins.win/get?url=";
                 const target = encodeURIComponent("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^KS11,^KQ11");
@@ -182,11 +182,10 @@
             const tickerEl = document.getElementById('market-ticker');
 
             if(!key || !secret) {
-                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-yellow-400 font-bold">키를 설정해주세요.</span>`;
+                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-yellow-400 font-bold">엔진 가동 대기 중...</span>`;
                 return;
             }
 
-            // 2. Vercel 백엔드로 다이렉트 POST 요청 🚀
             try {
                 tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-blue-300 font-bold">한투 다이렉트 연결 중...</span>`;
                 
@@ -198,8 +197,8 @@
                 
                 const data = await res.json();
                 
-                if (data.reset_token) savedKisToken = ""; // 토큰 만료시 초기화
-                if (data.token) savedKisToken = data.token; // 새 토큰 저장
+                if (data.reset_token) savedKisToken = ""; 
+                if (data.token) savedKisToken = data.token; 
                 
                 if (data.prices && data.prices.length > 0) {
                     allStockData = data.prices;
@@ -224,24 +223,34 @@
         function saveAndConnect() {
             localStorage.setItem('kis_key', document.getElementById('app-key').value);
             localStorage.setItem('kis_secret', document.getElementById('app-secret').value);
-            alert("연결 완료! 시스템이 실시간으로 가동됩니다.");
             savedKisToken = ""; 
-            updateData(); 
+            
+            // 🚨 핵심 수정: 버튼을 누를 때마다 기존 타이머를 죽이고 새로 시작!
+            if (dataInterval) clearInterval(dataInterval);
+            
+            alert("엔진 가동 준비 완료! (통신을 시작합니다)");
+            
+            updateData(); // 즉시 1번 실행
+            dataInterval = setInterval(updateData, 30000); // 이후 30초마다 안전하게 실행
+            
             switchT(document.querySelector('.nav-btn'), 'tab-market');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('main-search-input').value = ""; 
             render([]); updateClock(); setInterval(updateClock, 1000); 
-            setInterval(updateData, 30000); setInterval(updateNews, 60000); updateData(); updateNews();
             
-            // 저장된 키가 있으면 설정창에 미리 표시
             if(localStorage.getItem('kis_key')) document.getElementById('app-key').value = localStorage.getItem('kis_key');
             if(localStorage.getItem('kis_secret')) document.getElementById('app-secret').value = localStorage.getItem('kis_secret');
+            
+            // 🚨 핵심 수정: 사이트 켜자마자 데이터 호출하는 타이머 삭제! (뉴스만 가져옴)
+            setInterval(updateNews, 60000); 
+            updateNews();
         });
     </script>
 </body>
 </html>
+
 
 
 
