@@ -1,6 +1,4 @@
-let cachedToken = null;
-let tokenExpireTime = 0;
-
+// api/engine.js - 한투 공식 VIP 전용 엔진 (우회 없음, 오직 정면 돌파)
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -10,112 +8,59 @@ export default async function handler(req, res) {
     try {
         let bodyData = req.body;
         if (typeof bodyData === 'string') { try { bodyData = JSON.parse(bodyData); } catch(e) {} }
-        const { action, appKey, appSecret } = bodyData || {};
+        const { action, appKey, appSecret, token } = bodyData || {};
 
-        // 🚨 [보완 1] 뉴스(News) 요청이 오면 처리해주는 전용 통로 추가!
         if (action === 'news') {
-            return res.status(200).json({
-                news: [
-                    { title: "[시스템] SH&CHU 실시간 전광판 엔진 정상 가동 중 🚀", publisher: "Core System", time: new Date().toLocaleTimeString('ko-KR') }
-                ]
-            });
+            return res.status(200).json({ news: [{ title: "[시스템] 한투 VIP 엔진 가동 중 🚀", publisher: "Core System", time: new Date().toLocaleTimeString('ko-KR') }] });
         }
-
-        // 종목 스캔 요청이 아닐 경우 대기
         if (action !== 'full_scan') return res.status(200).json({ backend_msg: "대기 중", prices: [] });
 
-        let prices = [];
-        let indices = { kp: { p: "2,650.00", d: "0.00" }, kd: { p: "870.00", d: "0.00" } };
-        const BACKUP_CODES = ["005930", "000660", "373220", "207940", "005380", "068270", "000270", "005490", "105560", "035420"];
-        const BACKUP_NAMES = ["삼성전자", "SK하이닉스", "LG에너지솔루션", "삼성바이오로직스", "현대차", "셀트리온", "기아", "POSCO홀딩스", "KB금융", "NAVER"];
+        let activeToken = token;
+        let isNewToken = false;
 
-        const browserHeaders = { 
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            "Accept": "*/*"
-        };
-
-        // 🚨 [공통] 지수는 무조건 야후에서 (신분증 제시!)
-        try {
-            const idxRes = await fetch("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^KS11,^KQ11", { headers: browserHeaders });
-            const idxData = await idxRes.json();
-            const kospi = idxData.quoteResponse.result[0];
-            const kosdaq = idxData.quoteResponse.result[1];
-            if(kospi) indices.kp = { p: kospi.regularMarketPrice.toLocaleString(), d: kospi.regularMarketChangePercent.toFixed(2) };
-            if(kosdaq) indices.kd = { p: kosdaq.regularMarketPrice.toLocaleString(), d: kosdaq.regularMarketChangePercent.toFixed(2) };
-        } catch (e) { console.log("지수 로드 실패"); }
-
-        // 1️⃣ [1순위] 한투 엔진 (6시간 알림 방지 로직)
-        if (appKey && appSecret) {
-            const now = Date.now();
-            if (!cachedToken || now > tokenExpireTime) {
-                try {
-                    const tRes = await fetch("https://openapi.koreainvestment.com:9443/oauth2/tokenP", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ grant_type: "client_credentials", appkey: appKey, appsecret: appSecret })
-                    });
-                    const tData = await tRes.json();
-                    if (tData.access_token) {
-                        cachedToken = tData.access_token;
-                        tokenExpireTime = now + (6 * 60 * 60 * 1000); 
-                    }
-                } catch (e) {}
-            }
-
-            if (cachedToken) {
-                try {
-                    const rankRes = await fetch(`https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-ranking?FID_COND_MRKT_DIV_CODE=0000&FID_COND_SCR_DIV_CODE=20173&FID_INPUT_ISCD=0000&FID_DIV_CLS_CODE=0&FID_BLNG_CLS_CODE=0&FID_TRGT_CLS_CODE=0&FID_TRGT_EXLS_CLS_CODE=0&FID_INPUT_PRICE_1=&FID_INPUT_PRICE_2=&FID_VOL_CNT=&FID_INPUT_DATE_1=`, {
-                        headers: { "Content-Type": "application/json", "authorization": `Bearer ${cachedToken}`, "appkey": appKey, "appsecret": appSecret, "tr_id": "HHKST01010300" }
-                    });
-                    const rData = await rankRes.json();
-                    if (rData.rt_cd === '0' && rData.output && rData.output.length > 0) {
-                        prices = rData.output.slice(0, 100).map((item, i) => ({
-                            sectorId: (i % 15) + 1, c: item.mksc_shrn_iscd, n: item.hts_kor_isnm,
-                            price: item.stck_prpr, diff: item.prdy_ctrt, v: Math.floor(item.acml_tr_pbmn/100000000),
-                            signal: Number(item.prdy_ctrt) > 3.5 ? "BUY" : "WAIT", i: "0", f: "0", p: "0"
-                        }));
-                        return res.status(200).json({ backend_msg: "1차 한투 엔진 가동 중 🚀", prices, indices });
-                    }
-                } catch (e) {}
+        // 1. 발급된 출입증(토큰)이 없으면 새로 발급
+        if (!activeToken && appKey && appSecret) {
+            const tRes = await fetch("https://openapi.koreainvestment.com:9443/oauth2/tokenP", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ grant_type: "client_credentials", appkey: appKey, appsecret: appSecret })
+            });
+            const tData = await tRes.json();
+            if (tData.access_token) {
+                activeToken = tData.access_token;
+                isNewToken = true;
             }
         }
 
-        // 2️⃣ [2순위] 야후 종목 백업 
-        try {
-            const symbols = BACKUP_CODES.map(code => code + ".KS").join(",");
-            const yRes = await fetch(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${symbols}`, { headers: browserHeaders });
-            const yData = await yRes.json();
-            if (yData.quoteResponse.result && yData.quoteResponse.result.length > 0) {
-                prices = yData.quoteResponse.result.map((o, i) => ({
-                    sectorId: (i % 15) + 1, c: BACKUP_CODES[i], n: BACKUP_NAMES[i],
-                    price: o.regularMarketPrice.toString(), diff: o.regularMarketChangePercent.toFixed(2),
-                    v: Math.floor((o.regularMarketVolume * o.regularMarketPrice) / 100000000),
-                    signal: o.regularMarketChangePercent > 3.5 ? "BUY" : "WAIT", i: "0", f: "0", p: "0"
+        if (activeToken) {
+            // 2. 🚨 핵심: custtype "P" (개인고객) 신분증을 달고 당당하게 요청!
+            const rankRes = await fetch(`https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-ranking?FID_COND_MRKT_DIV_CODE=0000&FID_COND_SCR_DIV_CODE=20173&FID_INPUT_ISCD=0000&FID_DIV_CLS_CODE=0&FID_BLNG_CLS_CODE=0&FID_TRGT_CLS_CODE=0&FID_TRGT_EXLS_CLS_CODE=0&FID_INPUT_PRICE_1=&FID_INPUT_PRICE_2=&FID_VOL_CNT=&FID_INPUT_DATE_1=`, {
+                headers: { 
+                    "Content-Type": "application/json", 
+                    "authorization": `Bearer ${activeToken}`, 
+                    "appkey": appKey, 
+                    "appsecret": appSecret, 
+                    "tr_id": "HHKST01010300",
+                    "custtype": "P"  // 👉 이게 없어서 그동안 튕겼던 겁니다!
+                }
+            });
+            const rData = await rankRes.json();
+            
+            if (rData.rt_cd === '0' && rData.output && rData.output.length > 0) {
+                let prices = rData.output.slice(0, 100).map((item, i) => ({
+                    sectorId: (i % 15) + 1, c: item.mksc_shrn_iscd, n: item.hts_kor_isnm,
+                    price: item.stck_prpr, diff: item.prdy_ctrt, v: Math.floor(item.acml_tr_pbmn/100000000), 
+                    signal: Number(item.prdy_ctrt) > 3.5 ? "BUY" : "WAIT", i: "0", f: "0", p: "0"
                 }));
-                return res.status(200).json({ backend_msg: "2차 야후 백업 가동 중 🌐", prices, indices });
-            }
-        } catch (e) { console.log("야후 종목 로드 실패"); }
-
-        // 3️⃣ [3순위] 네이버 백업 
-        for (let i = 0; i < BACKUP_CODES.length; i++) {
-            try {
-                const nr = await fetch(`https://polling.finance.naver.com/api/realtime/site/main?symbol=${BACKUP_CODES[i]}`, { headers: browserHeaders });
-                const nd = await nr.json();
-                const o = nd.result.areas[0].datas[0];
-                prices.push({
-                    sectorId: (i % 15) + 1, c: BACKUP_CODES[i], n: o.nm, price: o.nv, diff: o.cr, v: Math.floor(o.aq / 1000000),
-                    signal: Number(o.cr) > 3.5 ? "BUY" : "WAIT", i: "0", f: "0", p: "0"
-                });
-            } catch (e) { 
-                // 🚨 [보완 2] 네이버마저 튕기면 빈 화면 방지용 최후의 보루 데이터 삽입!
-                prices.push({
-                    sectorId: (i % 15) + 1, c: BACKUP_CODES[i], n: BACKUP_NAMES[i], price: "장마감", diff: "0.00", v: "0",
-                    signal: "WAIT", i: "0", f: "0", p: "0"
-                });
+                // 지수는 한투 랭킹 API에 없으므로 임시 표시
+                let indices = { kp: { p: "ON", d: "0.00" }, kd: { p: "ON", d: "0.00" } };
+                return res.status(200).json({ backend_msg: "🚀 한투 VIP 엔진 가동 중", prices, indices, token: isNewToken ? activeToken : null });
+            } else {
+                // 토큰 만료 등 에러 시 토큰 리셋 신호 보냄
+                return res.status(200).json({ backend_msg: "한투 연결 지연 (토큰 재발급 필요)", prices: [], reset_token: true });
             }
         }
 
-        return res.status(200).json({ backend_msg: "3차 네이버 백업 가동 중 ⚠️", prices, indices });
+        return res.status(200).json({ backend_msg: "한투 AppKey/SecretKey가 설정되지 않았습니다.", prices: [] });
 
     } catch (e) {
         return res.status(500).json({ backend_msg: "최종 엔진 오류", prices: [] });
