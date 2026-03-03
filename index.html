@@ -80,10 +80,8 @@
         <div onclick="switchT(this,'tab-config')" class="nav-btn"><i class="fas fa-gear text-2xl"></i><span class="text-[11px] mt-1 font-black">설정</span></div>
     </nav>
 
-    <script>
-        // 🚨 여기에 [새 배포]로 발급받은 새로운 구글 URL을 넣어주세요!
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbyCbf7NMR-_KVg6BCZFkaNIC31Ors9D7G0OY8EX0J5qr_DsLceWipJJvJFwbsOlq0A/exec";
-
+<script>
+        // 🚨 구글 브릿지(GAS_URL) 완전 삭제! Vercel 다이렉트 통신
         let curM = 'all', allStockData = [], isSoundOn = false, savedKisToken = "";
         
         const sectors = [
@@ -113,13 +111,8 @@
         function toggleSound() {
             isSoundOn = !isSoundOn;
             const btn = document.getElementById('sound-btn');
-            if(isSoundOn) {
-                btn.textContent = 'SOUND ON 🔊';
-                btn.className = 'bg-red-500 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
-            } else {
-                btn.textContent = 'SOUND OFF 🔇';
-                btn.className = 'bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
-            }
+            btn.textContent = isSoundOn ? 'SOUND ON 🔊' : 'SOUND OFF 🔇';
+            btn.className = isSoundOn ? 'bg-red-500 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md' : 'bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
         }
 
         function render(data = []) {
@@ -174,7 +167,7 @@
             const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
             let indexText = "지수 조회 중...";
 
-            // 1. 튼튼한 지수 우회 프록시로 변경 (allorigins 사용)
+            // 1. 지수 우회 프록시 (그대로 유지)
             try {
                 const proxy = "https://api.allorigins.win/get?url=";
                 const target = encodeURIComponent("https://query1.finance.yahoo.com/v7/finance/quote?symbols=^KS11,^KQ11");
@@ -189,40 +182,34 @@
             const tickerEl = document.getElementById('market-ticker');
 
             if(!key || !secret) {
-                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-yellow-400 font-bold">키를 입력해주세요.</span>`;
+                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-yellow-400 font-bold">키를 설정해주세요.</span>`;
                 return;
             }
 
-            if(GAS_URL.includes("여기에")) {
-                 tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">🚨 코드에 구글 주소를 넣어주세요!</span>`;
-                 return;
-            }
-
-            // 2. 구글 브릿지 GET 방식으로 호출 (CORS 완전 해결)
+            // 2. Vercel 백엔드로 다이렉트 POST 요청 🚀
             try {
-                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-blue-300 font-bold">구글 연결 중...</span>`;
+                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-blue-300 font-bold">한투 다이렉트 연결 중...</span>`;
                 
-                // 데이터를 URL 주소 뒤에 당당하게 달고 갑니다 (GET 방식)
-                const reqUrl = `${GAS_URL}?appKey=${encodeURIComponent(key)}&appSecret=${encodeURIComponent(secret)}&token=${encodeURIComponent(savedKisToken)}`;
+                const res = await fetch("/api/engine", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: 'full_scan', appKey: key, appSecret: secret, token: savedKisToken })
+                });
                 
-                const res = await fetch(reqUrl);
                 const data = await res.json();
                 
-                if (data.token) savedKisToken = data.token;
+                if (data.reset_token) savedKisToken = ""; // 토큰 만료시 초기화
+                if (data.token) savedKisToken = data.token; // 새 토큰 저장
                 
                 if (data.prices && data.prices.length > 0) {
-                    allStockData = data.prices.map((item, i) => ({
-                        sectorId: (i % 15) + 1, c: item.mksc_shrn_iscd, n: item.hts_kor_isnm,
-                        price: item.stck_prpr, diff: item.prdy_ctrt, v: Math.floor(item.acml_tr_pbmn/100000000), 
-                        signal: Number(item.prdy_ctrt) > 3.5 ? "BUY" : "WAIT"
-                    }));
+                    allStockData = data.prices;
                     if(!document.getElementById('main-search-input').value) render(allStockData);
-                    tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-green-300 font-bold">✅ 엔진 정상 가동</span>`;
-                } else if (data.error) {
-                     tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">에러: ${data.error.substring(0,20)}</span>`;
+                    tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-green-400 font-bold">${data.backend_msg}</span>`;
+                } else {
+                     tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">${data.backend_msg || '데이터 없음'}</span>`;
                 }
             } catch (e) { 
-                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">브릿지 연결 지연 ⚠️</span>`; 
+                tickerEl.innerHTML = indexText + ` &nbsp;&nbsp; | &nbsp;&nbsp; <span class="text-red-400 font-bold">서버 연결 지연 ⚠️</span>`; 
             }
         }
 
@@ -247,9 +234,14 @@
             document.getElementById('main-search-input').value = ""; 
             render([]); updateClock(); setInterval(updateClock, 1000); 
             setInterval(updateData, 30000); setInterval(updateNews, 60000); updateData(); updateNews();
+            
+            // 저장된 키가 있으면 설정창에 미리 표시
+            if(localStorage.getItem('kis_key')) document.getElementById('app-key').value = localStorage.getItem('kis_key');
+            if(localStorage.getItem('kis_secret')) document.getElementById('app-secret').value = localStorage.getItem('kis_secret');
         });
     </script>
 </body>
 </html>
+
 
 
