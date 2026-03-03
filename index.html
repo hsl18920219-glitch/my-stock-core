@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SH&CHU-CORE V4.8 - 클라이언트 직결 🚀</title>
+    <title>SH&CHU-CORE V4.9 - 한투 VIP</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -13,35 +13,12 @@
         .method-btn { flex: 1; text-align: center; padding: 10px 0; font-size: 11px; font-weight: 900; background: white; border: 1px solid #d1dee3; color: #999; cursor: pointer; transition: all 0.2s; }
         .method-btn.active { background: #00b0b0; color: white; border-color: #00b0b0; }
         
-        #sector-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 12px;
-            align-items: start;
-        }
-        .card { 
-            background: white; 
-            border-radius: 6px; 
-            border: 1px solid #cbd5e1; 
-            overflow: hidden; 
-            margin-bottom: 2px; 
-            height: 100%; 
-            min-height: 480px; 
-            display: flex;
-            flex-direction: column;
-        }
-
+        #sector-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; align-items: start; }
+        .card { background: white; border-radius: 6px; border: 1px solid #cbd5e1; overflow: hidden; margin-bottom: 2px; height: 100%; min-height: 480px; display: flex; flex-direction: column; }
         .sector-header { background-color: #00b0b0; padding: 6px 10px; display: flex; justify-content: space-between; align-items: center; }
         .sector-title { font-size: 14px; font-weight: 900; color: white; }
         
-        .stock-item { 
-            position: relative; 
-            padding: 14px 14px; 
-            border-bottom: 4px solid #cbd5e1; 
-            height: 115px; 
-            cursor: pointer; 
-            transition: background 0.2s; 
-        }
+        .stock-item { position: relative; padding: 14px 14px; border-bottom: 4px solid #cbd5e1; height: 115px; cursor: pointer; transition: background 0.2s; }
         .stock-item:last-child { border-bottom: none; }
         .stock-item:hover { background-color: #f8fafc; }
         .stock-name { font-size: 15px; font-weight: 900; color: #111827; display: flex; align-items: center; gap: 4px; }
@@ -63,13 +40,13 @@
 <body>
     <header class="bg-[#e9eff2] sticky top-0 z-50">
         <div class="p-3 flex justify-between items-center">
-            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU-CORE v4.8</span>
+            <span class="text-xl font-black italic text-[#00b0b0]">SH&CHU-CORE v4.9</span>
             <div class="flex items-center gap-2">
                 <div id="real-time-clock" class="text-[11px] font-black text-[#00b0b0] bg-white border border-[#00b0b0] px-2 py-1 rounded-full shadow-sm">KST 00:00:00</div>
                 <button id="sound-btn" onclick="toggleSound()" class="bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md">SOUND OFF 🔇</button>
             </div>
         </div>
-        <div class="px-3 pb-2"><div class="ticker-container shadow-sm"><div id="market-ticker" class="ticker-text">실시간 연결 중... 🚀</div></div></div>
+        <div class="px-3 pb-2"><div class="ticker-container shadow-sm"><div id="market-ticker" class="ticker-text">실시간 엔진 가동 대기 중...</div></div></div>
         <div class="px-3 pb-2"><div class="relative">
             <input type="text" id="main-search-input" onkeyup="searchStock()" autocomplete="off" placeholder="종목, 테마명을 입력하세요." class="w-full p-2 pl-4 pr-10 rounded-full border-2 border-[#00b0b0] text-sm font-bold focus:outline-none bg-white">
             <i class="fas fa-search absolute right-4 top-3 text-[#00b0b0]"></i>
@@ -89,8 +66,8 @@
             <div class="card p-5 shadow-lg border-2 border-[#00b0b0]">
                 <h3 class="font-black text-[#00b0b0] mb-4 text-center">전종목 스캔 엔진 설정</h3>
                 <div class="space-y-3">
-                    <input type="text" id="app-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Key (현재 미사용)">
-                    <input type="password" id="app-secret" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Secret (현재 미사용)">
+                    <input type="text" id="app-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Key (필수)">
+                    <input type="password" id="app-secret" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="한투 App Secret (필수)">
                     <input type="text" id="dart-key" class="w-full p-3 border rounded-lg text-sm font-bold" placeholder="DART API Key">
                     <button onclick="saveAndConnect()" class="tima-mint text-white w-full py-4 rounded-xl font-black shadow-lg">시스템 가동 및 실시간 연결 👊</button>
                 </div>
@@ -107,6 +84,7 @@
     <script>
         let curM = 'all', allStockData = [], isSoundOn = false;
         let announcedNews = new Set();
+        let savedKisToken = null; // 🚨 브라우저 토큰 캐싱 부활!
         
         const sectors = [
             {id:1, t:'반도체/HBM'}, {id:2, t:'2차전지'}, {id:3, t:'자동차/모빌'}, {id:4, t:'바이오/제약'},
@@ -117,11 +95,7 @@
 
         function updateClock() {
             const now = new Date();
-            const h = String(now.getHours()).padStart(2, '0');
-            const m = String(now.getMinutes()).padStart(2, '0');
-            const s = String(now.getSeconds()).padStart(2, '0');
-            const clockEl = document.getElementById('real-time-clock');
-            if (clockEl) clockEl.innerText = `KST ${h}:${m}:${s}`;
+            document.getElementById('real-time-clock').innerText = `KST ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         }
 
         function switchT(el, id) {
@@ -135,15 +109,10 @@
         function toggleSound() {
             isSoundOn = !isSoundOn;
             const btn = document.getElementById('sound-btn');
-            if (isSoundOn) {
-                btn.textContent = 'SOUND ON 🔊';
-                btn.className = 'bg-red-500 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
-                speak("사운드 알림이 켜졌습니다.");
-            } else {
-                btn.textContent = 'SOUND OFF 🔇';
-                btn.className = 'bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
-                if(window.speechSynthesis) window.speechSynthesis.cancel();
-            }
+            btn.textContent = isSoundOn ? 'SOUND ON 🔊' : 'SOUND OFF 🔇';
+            btn.className = isSoundOn ? 'bg-red-500 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md' : 'bg-gray-400 text-white px-3 py-1 rounded-full text-[11px] font-black shadow-md';
+            if(!isSoundOn && window.speechSynthesis) window.speechSynthesis.cancel();
+            if(isSoundOn) speak("사운드 알림이 켜졌습니다.");
         }
 
         function speak(text) {
@@ -166,16 +135,12 @@
                 }).slice(0, 4);
 
                 return `<div class="card flex flex-col">
-                    <div class="sector-header">
-                        <span class="sector-title">${sec.t}</span>
-                        <span class="text-[10px] text-white opacity-80">${sec.id}위</span>
-                    </div>
+                    <div class="sector-header"><span class="sector-title">${sec.t}</span><span class="text-[10px] text-white opacity-80">${sec.id}위</span></div>
                     <div class="flex-1">${filtered.map(s => {
                         const diff = Number(s.diff) || 0;
                         const isUpper = diff >= 29.5;
                         const barColor = isUpper ? '#c2410c' : (diff >= 0 ? '#ef4444' : '#3b82f6');
                         const bgClass = isUpper ? 'bg-upper-limit' : (s.signal === 'BUY' ? 'bg-sfzone' : '');
-                        
                         const barWidth = Math.min(Math.abs(diff) * 1.66, 50); 
                         const leftPos = diff >= 0 ? 50 : 50 - barWidth;
 
@@ -193,117 +158,58 @@
                                 <span class="text-[#00b0b0] bg-teal-50 px-2 py-0.5 rounded text-[12px]">${s.v}억</span>
                                 <span class="${s.signal==='WAIT'?'text-blue-500 animate-pulse':'text-red-500'} text-[12px]">${isUpper?'MAX':s.signal}</span>
                             </div>
-                            <div class="supply-row">
-                                <div class="text-[#22c55e]">기:${s.i || '0'}</div>
-                                <div class="text-[#ef4444]">외:${s.f || '0'}</div>
-                                <div class="text-[#64748b]">개:${s.p || '0'}</div>
-                            </div>
                         </div>`;
-                    }).join('') || '<div class="p-8 text-center text-xs text-gray-300">검색 조건 미달</div>'}</div>
+                    }).join('') || '<div class="p-8 text-center text-xs text-gray-300">데이터 없음</div>'}</div>
                 </div>`;
             }).join('');
         }
 
         function searchStock() {
             const query = (document.getElementById('main-search-input').value || '').toLowerCase();
-            const filtered = allStockData.filter(s => (s.n || '').toLowerCase().includes(query) || (s.c || '').includes(query));
-            render(filtered);
+            render(allStockData.filter(s => (s.n || '').toLowerCase().includes(query) || (s.c || '').includes(query)));
         }
 
-        // 🚨 [핵심 변경] 클라이언트 직결 스크래핑 엔진 (서버 차단 원천 봉쇄!)
+        // 🚨 한투 공식 서버 연동 복구!
         async function updateData() {
+            const key = localStorage.getItem('kis_key'), secret = localStorage.getItem('kis_secret');
+            if(!key || !secret) {
+                document.getElementById('market-ticker').innerHTML = `<span class="text-yellow-400 font-bold">설정 탭에서 한투 API Key를 입력해주세요.</span>`;
+                return;
+            }
             try {
-                // 우회 도로(CORS 프록시) 설정
-                const proxy = "https://api.allorigins.win/raw?url=";
-                
-                // 네이버 지수 URL
-                const idxKpUrl = encodeURIComponent("https://m.stock.naver.com/api/index/KOSPI/basic");
-                const idxKdUrl = encodeURIComponent("https://m.stock.naver.com/api/index/KOSDAQ/basic");
-                
-                // 네이버 거래량 상위 50 종목 URL (코스피/코스닥)
-                const kpUrl = encodeURIComponent("https://m.stock.naver.com/api/stocks/volume/KOSPI?page=1&pageSize=50");
-                const kdUrl = encodeURIComponent("https://m.stock.naver.com/api/stocks/volume/KOSDAQ?page=1&pageSize=50");
-
-                // 한 번에 4개 주소 동시 찌르기
-                const [idxKpRes, idxKdRes, kpRes, kdRes] = await Promise.all([
-                    fetch(proxy + idxKpUrl), fetch(proxy + idxKdUrl),
-                    fetch(proxy + kpUrl), fetch(proxy + kdUrl)
-                ]);
-
-                const idxKp = await idxKpRes.json();
-                const idxKd = await idxKdRes.json();
-                const kpData = await kpRes.json();
-                const kdData = await kdRes.json();
-
-                // 1. 지수 데이터 화면에 뿌리기
-                const kpDiff = parseFloat(idxKp.fluctuationsRatio).toFixed(2);
-                const kdDiff = parseFloat(idxKd.fluctuationsRatio).toFixed(2);
-                
-                document.getElementById('market-ticker').innerHTML = 
-                    `KOSPI <span class="${kpDiff>=0?'text-red-400':'text-blue-400'}">${idxKp.closePrice} (${kpDiff}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
-                    `KOSDAQ <span class="${kdDiff>=0?'text-red-400':'text-blue-400'}">${idxKd.closePrice} (${kdDiff}%)</span> &nbsp;&nbsp; | &nbsp;&nbsp; ` +
-                    `<span class="text-green-300">✅ 브라우저 직결 엔진 가동 중</span>`;
-
-                // 2. 종목 데이터 합치고 변환하기
-                const combined = [...(kpData.stocks || []), ...(kdData.stocks || [])];
-                
-                // 거래량 순으로 내림차순 정렬
-                combined.sort((a, b) => Number(b.accumulatedTradingVolume) - Number(a.accumulatedTradingVolume));
-
-                // UI 양식에 맞게 데이터 가공
-                allStockData = combined.slice(0, 100).map((item, i) => {
-                    const diff = Number(item.fluctuationsRatio);
-                    const priceStr = item.closePrice.replace(/,/g, '');
-                    const vol = Number(item.accumulatedTradingVolume);
-                    const vAmt = Math.floor((vol * Number(priceStr)) / 100000000); // 억 단위
-
-                    return {
-                        sectorId: (i % 15) + 1, 
-                        c: item.itemCode, 
-                        n: item.stockName,
-                        price: priceStr, 
-                        diff: diff.toFixed(2), 
-                        v: vAmt, 
-                        signal: diff > 3.5 ? "BUY" : "WAIT", 
-                        i: "0", f: "0", p: "0"
-                    };
+                const res = await fetch("/api/engine", { 
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: 'full_scan', appKey: key, appSecret: secret, token: savedKisToken }) 
                 });
+                const data = await res.json();
+                
+                // 에러나면 토큰 날리고 재발급 유도
+                if(data.reset_token) savedKisToken = null;
+                else if (data.token) savedKisToken = data.token; 
 
+                const statusMsg = data.backend_msg || "상태 정보 없음";
+                document.getElementById('market-ticker').innerHTML = `<span class="text-green-300 font-bold">${statusMsg}</span>`;
+
+                allStockData = data.prices || [];
                 if(!document.getElementById('main-search-input').value) render(allStockData);
-
             } catch (e) { 
-                console.error("데이터 스캔 에러:", e); 
-                document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">네이버 직결 통신 지연 ⚠️</span>`;
+                document.getElementById('market-ticker').innerHTML = `<span class="text-red-400 font-bold">서버 통신 단절 ⚠️</span>`;
             }
         }
 
-        // 🚨 [뉴스 추가] 네이버 실시간 속보 브라우저 직결 엔진
         async function updateNews() {
             try {
-                const proxy = "https://api.allorigins.win/raw?url=";
-                const newsUrl = encodeURIComponent("https://m.stock.naver.com/api/news/list?category=mainnews&page=1&pageSize=10");
-                const res = await fetch(proxy + newsUrl);
+                const res = await fetch("/api/engine", { 
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: 'news' }) 
+                });
                 const data = await res.json();
                 const newsList = document.getElementById('news-list');
                 
-                if (data && data.length > 0) {
-                    newsList.innerHTML = data.map(n => {
-                        // 시간 포맷 예쁘게 만들기 (YYYYMMDDHHMMSS -> HH:MM)
-                        const timeStr = n.datetime.length >= 12 ? `${n.datetime.substring(8,10)}:${n.datetime.substring(10,12)}` : n.datetime;
-                        return `<div class="card p-4 border-l-4 border-[#00b0b0] bg-white shadow-md mb-3">
-                            <div class="text-[15px] font-black text-gray-800 leading-relaxed">${n.title}</div>
-                            <div class="text-[12px] text-gray-500 mt-2 font-bold flex justify-between"><span>${n.officeName}</span><span>${timeStr}</span></div>
-                        </div>`;
-                    }).join('');
-
-                    const latestNews = data[0];
-                    const newsId = latestNews.datetime + latestNews.title; 
-                    if (!announcedNews.has(newsId)) {
-                        announcedNews.add(newsId);
-                        speak("새로운 속보입니다. " + latestNews.title);
-                    }
+                if (data && data.news && data.news.length > 0) {
+                    newsList.innerHTML = data.news.map(n => `<div class="card p-4 border-l-4 border-[#00b0b0] bg-white shadow-md mb-3"><div class="text-[15px] font-black text-gray-800 leading-relaxed">${n.title}</div><div class="text-[12px] text-gray-500 mt-2 font-bold flex justify-between"><span>${n.publisher}</span><span>${n.time}</span></div></div>`).join('');
                 }
-            } catch (e) { document.getElementById('news-list').innerHTML = '<div class="p-10 text-center text-red-400">뉴스 통신 지연</div>'; }
+            } catch (e) {}
         }
 
         function switchM(m, el) {
@@ -313,24 +219,19 @@
         function saveAndConnect() {
             localStorage.setItem('kis_key', document.getElementById('app-key').value);
             localStorage.setItem('kis_secret', document.getElementById('app-secret').value);
-            localStorage.setItem('dart_key', document.getElementById('dart-key').value);
             document.getElementById('main-search-input').value = ""; 
+            savedKisToken = null; // 저장 시 토큰 초기화
             alert("연결 완료! 시스템이 실시간으로 가동됩니다.");
-            updateData(); updateNews(); switchT(document.querySelector('.nav-btn'), 'tab-market');
+            updateData(); switchT(document.querySelector('.nav-btn'), 'tab-market');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('main-search-input').value = ""; 
             render([]); 
             updateClock(); setInterval(updateClock, 1000); 
-            
-            // 30초마다 네이버 데이터 직결 업데이트
-            setInterval(updateData, 30000);  
-            setInterval(updateNews, 60000); 
-            
-            // 켜자마자 바로 1회 스캔 실행
-            updateData();
-            updateNews();
+            setInterval(updateData, 30000); // 30초 
+            setInterval(updateNews, 60000); // 60초
+            updateData(); updateNews();
         });
     </script>
 </body>
