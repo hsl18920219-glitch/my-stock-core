@@ -1,4 +1,4 @@
-// api/engine.js - 방화벽 우회 (위장 신분증 탑재) 버전 🚀
+// api/engine.js - 최종 방화벽 우회 & 에러 추적 버전 🚀
 export const config = { runtime: 'nodejs' };
 
 export default async function handler(req, res) {
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
         let activeToken = token;
         let isNewToken = false;
 
-        // 1. 토큰 요청 (이미 완벽하게 통과되는 부분!)
+        // 1. 토큰 요청 (🚨 에러 원인 완벽 추적 장치 탑재)
         if (!activeToken) {
             const tRes = await fetch("https://openapi.koreainvestment.com:9443/oauth2/tokenP", {
                 method: "POST", 
@@ -35,11 +35,13 @@ export default async function handler(req, res) {
                 activeToken = tData.access_token;
                 isNewToken = true;
             } else {
-                return res.status(200).json({ backend_msg: `키 거절됨: ${tData.msg1}`, prices: [], error: true });
+                // 🚨 한투가 내뱉는 진짜 에러 메시지를 화면에 뿌립니다!
+                let errMsg = tData.error_description || tData.msg1 || JSON.stringify(tData).substring(0, 50);
+                return res.status(200).json({ backend_msg: `🚨 열쇠 거절 사유: ${errMsg}`, prices: [], error: true });
             }
         }
 
-        // 2. 랭킹 데이터 요청 (로봇 위장 신분증 추가!)
+        // 2. 랭킹 데이터 요청 (방화벽 우회 위장 신분증 유지)
         const rankUrl = "https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-ranking?FID_COND_MRKT_DIV_CODE=J&FID_COND_SCR_DIV_CODE=20171&FID_INPUT_ISCD=0000&FID_DIV_CLS_CODE=0&FID_BLNG_CLS_CODE=0&FID_TRGT_CLS_CODE=0&FID_TRGT_EXLS_CLS_CODE=0&FID_INPUT_PRICE_1=&FID_INPUT_PRICE_2=&FID_VOL_CNT=&FID_INPUT_DATE_1=";
         const rankRes = await fetch(rankUrl, {
             method: 'GET',
@@ -50,19 +52,13 @@ export default async function handler(req, res) {
                 "appsecret": appSecret, 
                 "tr_id": "HHKST01010300",
                 "custtype": "P",
-                // 🚨 핵심 포인트: 한투 방화벽을 속이는 가짜 크롬 브라우저 신분증
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
         });
         
         const rText = await rankRes.text();
         let rData;
-        try {
-            rData = JSON.parse(rText);
-        } catch (e) {
-            // 만약 또 막히면 한투가 뭐라고 욕하는지 앞부분 40글자만 출력해서 확인
-            return res.status(200).json({ backend_msg: "🚨 차단 원인: " + rText.substring(0, 40), prices: [] });
-        }
+        try { rData = JSON.parse(rText); } catch (e) { return res.status(200).json({ backend_msg: "🚨 차단 원인: " + rText.substring(0, 40), prices: [] }); }
         
         if (rData.rt_cd === '0' && rData.output) {
             let prices = rData.output.slice(0, 100).map((item, i) => ({
