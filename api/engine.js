@@ -1,5 +1,8 @@
-// api/engine.js - 보안 강화 및 직접 입력 전용 엔진 (수급 UI 규격 완벽 일치)
+// api/engine.js - Vercel 다이렉트 엔진 (구글 브릿지 폐기, 직접 통신)
+export const config = { runtime: 'nodejs' };
+
 export default async function handler(req, res) {
+    // CORS 설정 (안전빵)
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -9,26 +12,26 @@ export default async function handler(req, res) {
         let bodyData = req.body;
         if (typeof bodyData === 'string') { try { bodyData = JSON.parse(bodyData); } catch(e) {} }
         
-        // 🚨 GitHub 코드에는 키를 넣지 않습니다. 프론트에서 보내준 값만 받습니다.
         const { action, appKey, appSecret, token } = bodyData || {};
 
+        // 🟢 뉴스 요청 처리
         if (action === 'news') {
             return res.status(200).json({ 
-                news: [{ title: "[시스템] 보안 엔진 가동 중 🚀 (Key 직접 입력 방식)", publisher: "Core System", time: new Date().toLocaleTimeString('ko-KR') }] 
+                news: [{ title: "[시스템] Vercel 다이렉트 엔진 가동 중 🚀 (해외 IP 뚫림)", publisher: "Core System", time: new Date().toLocaleTimeString('ko-KR') }] 
             });
         }
 
+        // 🟢 종목 스캔 요청 처리
         if (action !== 'full_scan') return res.status(200).json({ backend_msg: "대기 중", prices: [] });
 
-        // 앱키나 시크릿키가 없으면 즉시 중단 (불필요한 한투 접속 차단)
         if (!appKey || !appSecret) {
-            return res.status(200).json({ backend_msg: "[설정]에서 키를 먼저 입력해주세요.", prices: [] });
+            return res.status(200).json({ backend_msg: "키를 입력해주세요.", prices: [] });
         }
 
         let activeToken = token;
         let isNewToken = false;
 
-        // 1. 토큰 발급 (저장된 토큰이 없을 때만 한투 서버 찌름)
+        // 1. 한투 토큰 발급 (토큰이 없거나 만료되었을 때만)
         if (!activeToken) {
             const tRes = await fetch("https://openapi.koreainvestment.com:9443/oauth2/tokenP", {
                 method: "POST", 
@@ -41,21 +44,23 @@ export default async function handler(req, res) {
                 activeToken = tData.access_token;
                 isNewToken = true;
             } else {
-                return res.status(200).json({ backend_msg: "로그인 실패 (키/비번 확인 필요)", prices: [] });
+                return res.status(200).json({ backend_msg: "로그인 실패 (키 확인 필요)", prices: [], error: true });
             }
         }
 
-        // 2. 한투 랭킹 데이터 호출
-        const rankRes = await fetch(`https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-ranking?FID_COND_MRKT_DIV_CODE=0000&FID_COND_SCR_DIV_CODE=20173&FID_INPUT_ISCD=0000&FID_DIV_CLS_CODE=0&FID_BLNG_CLS_CODE=0&FID_TRGT_CLS_CODE=0&FID_TRGT_EXLS_CLS_CODE=0&FID_INPUT_PRICE_1=&FID_INPUT_PRICE_2=&FID_VOL_CNT=&FID_INPUT_DATE_1=`, {
+        // 2. 한투 VIP 랭킹 데이터 직접 타격
+        const rankUrl = "https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-ranking?FID_COND_MRKT_DIV_CODE=0000&FID_COND_SCR_DIV_CODE=20173&FID_INPUT_ISCD=0000&FID_DIV_CLS_CODE=0&FID_BLNG_CLS_CODE=0&FID_TRGT_CLS_CODE=0&FID_TRGT_EXLS_CLS_CODE=0&FID_INPUT_PRICE_1=&FID_INPUT_PRICE_2=&FID_VOL_CNT=&FID_INPUT_DATE_1=";
+        const rankRes = await fetch(rankUrl, {
+            method: 'GET',
             headers: { 
-                "content-type": "application/json; charset=utf-8", 
                 "authorization": `Bearer ${activeToken}`, 
                 "appkey": appKey, 
                 "appsecret": appSecret, 
                 "tr_id": "HHKST01010300",
-                "custtype": "P"  // 🚨 한투 보안 통과용 개인고객 인증
+                "custtype": "P" 
             }
         });
+        
         const rData = await rankRes.json();
         
         if (rData.rt_cd === '0' && rData.output) {
@@ -67,15 +72,15 @@ export default async function handler(req, res) {
                 diff: item.prdy_ctrt, 
                 v: Math.floor(item.acml_tr_pbmn/100000000), 
                 signal: Number(item.prdy_ctrt) > 3.5 ? "BUY" : "WAIT",
-                i: "0", f: "0", p: "0" // UI 규격 맞춤용 수급 데이터 추가
+                i: "0", f: "0", p: "0"
             }));
-            return res.status(200).json({ backend_msg: "🚀 한투 VIP 엔진 가동 중", prices, token: isNewToken ? activeToken : null });
+            return res.status(200).json({ backend_msg: "✅ 다이렉트 엔진 정상 가동", prices, token: isNewToken ? activeToken : null });
+        } else {
+            // 한투 서버가 토큰 만료 에러를 내뱉으면 프론트에 리셋하라고 알려줌
+            return res.status(200).json({ backend_msg: `데이터 지연: ${rData.msg1 || '응답 오류'}`, prices: [], reset_token: true });
         }
 
-        // 한투 서버에서 에러(토큰 만료 등)를 반환하면 프론트에 토큰 지우라고 리셋 명령!
-        return res.status(200).json({ backend_msg: "한투 데이터 지연 (토큰 갱신 중)", prices: [], reset_token: true });
-
     } catch (e) {
-        return res.status(500).json({ backend_msg: "최종 엔진 오류", prices: [] });
+        return res.status(500).json({ backend_msg: "서버 통신 오류", prices: [] });
     }
 }
