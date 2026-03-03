@@ -1,4 +1,4 @@
-// api/engine.js - 보안 강화 및 직접 입력 방식 전용 엔진
+// api/engine.js - 보안 강화 및 직접 입력 전용 엔진 (수급 UI 규격 완벽 일치)
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -9,7 +9,7 @@ export default async function handler(req, res) {
         let bodyData = req.body;
         if (typeof bodyData === 'string') { try { bodyData = JSON.parse(bodyData); } catch(e) {} }
         
-        // 프론트(설정 탭)에서 직접 입력해서 보내준 값만 받습니다.
+        // 🚨 GitHub 코드에는 키를 넣지 않습니다. 프론트에서 보내준 값만 받습니다.
         const { action, appKey, appSecret, token } = bodyData || {};
 
         if (action === 'news') {
@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         let activeToken = token;
         let isNewToken = false;
 
-        // 1. 토큰 발급 (저장된 토큰이 없을 때만 실행)
+        // 1. 토큰 발급 (저장된 토큰이 없을 때만 한투 서버 찌름)
         if (!activeToken) {
             const tRes = await fetch("https://openapi.koreainvestment.com:9443/oauth2/tokenP", {
                 method: "POST", 
@@ -36,6 +36,7 @@ export default async function handler(req, res) {
                 body: JSON.stringify({ grant_type: "client_credentials", appkey: appKey, appsecret: appSecret })
             });
             const tData = await tRes.json();
+            
             if (tData.access_token) {
                 activeToken = tData.access_token;
                 isNewToken = true;
@@ -52,7 +53,7 @@ export default async function handler(req, res) {
                 "appkey": appKey, 
                 "appsecret": appSecret, 
                 "tr_id": "HHKST01010300",
-                "custtype": "P"
+                "custtype": "P"  // 🚨 한투 보안 통과용 개인고객 인증
             }
         });
         const rData = await rankRes.json();
@@ -65,12 +66,13 @@ export default async function handler(req, res) {
                 price: item.stck_prpr, 
                 diff: item.prdy_ctrt, 
                 v: Math.floor(item.acml_tr_pbmn/100000000), 
-                signal: Number(item.prdy_ctrt) > 3.5 ? "BUY" : "WAIT"
+                signal: Number(item.prdy_ctrt) > 3.5 ? "BUY" : "WAIT",
+                i: "0", f: "0", p: "0" // UI 규격 맞춤용 수급 데이터 추가
             }));
-            // 지수는 프론트에서 야후 데이터를 합치도록 설계했으므로 여기선 종목만 반환
             return res.status(200).json({ backend_msg: "🚀 한투 VIP 엔진 가동 중", prices, token: isNewToken ? activeToken : null });
         }
 
+        // 한투 서버에서 에러(토큰 만료 등)를 반환하면 프론트에 토큰 지우라고 리셋 명령!
         return res.status(200).json({ backend_msg: "한투 데이터 지연 (토큰 갱신 중)", prices: [], reset_token: true });
 
     } catch (e) {
